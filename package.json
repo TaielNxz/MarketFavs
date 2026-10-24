@@ -1,0 +1,24 @@
+{
+  "name": "marketfavs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An independent Spicetify extension for Marketplace favorites and not-interested lists.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=browser --format=iife --target=es2022 --sourcemap --outfile=dist/marketfavs.js",
+    "dev": "npm run build -- --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run typecheck && npm run format:check && npm test"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2"
+  }
+}
