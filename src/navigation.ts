@@ -3,6 +3,7 @@ import { readNativeSort, sortSavedCards, type SortMode } from "./sorting";
 
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
+const SEARCH = `${HEADER} input.searchbar-bar`;
 const NATIVE_LIST = ".marketplace-tabBar-header";
 const ACTIVE = "marketplace-tabBar-active";
 const entries = [
@@ -124,14 +125,33 @@ export function mountNavigation(
   groups.className = "marketfavs-saved-groups";
   let rendered: typeof selected;
   let sortMode: SortMode = "stars";
+  let searchText = "";
+  function readSearch() {
+    return (
+      document
+        .querySelector<HTMLInputElement>(SEARCH)
+        ?.value.trim()
+        .toLowerCase() ?? ""
+    );
+  }
   function renderCards() {
     rendered = selected;
     sortMode = readNativeSort(document) ?? sortMode;
-    const cards = selected ? savedCards.items(selected.list) : [];
+    searchText = readSearch();
+    const saved = selected ? savedCards.items(selected.list) : [];
+    const cards = saved.filter((card) =>
+      [card.title, card.subtitle, card.description].some((text) =>
+        text.toLowerCase().includes(searchText),
+      ),
+    );
     const status = savedCards.status();
     notice.textContent = status.message;
     retry.hidden = !status.retryable;
     empty.hidden = !status.ready || cards.length > 0;
+    empty.textContent =
+      searchText && saved.length > 0
+        ? "No matching items."
+        : (selected?.empty ?? "");
     const sections = cardTypes.flatMap(({ type, label }) => {
       const items = sortSavedCards(
         cards.filter((card) => card.type === type),
@@ -303,11 +323,10 @@ export function mountNavigation(
     panel.hidden = selected === undefined;
     if (heading.textContent !== (selected?.label ?? ""))
       heading.textContent = selected?.label ?? "";
-    if (empty.textContent !== (selected?.empty ?? ""))
-      empty.textContent = selected?.empty ?? "";
     if (
       rendered !== selected ||
-      (readNativeSort(document) ?? sortMode) !== sortMode
+      (readNativeSort(document) ?? sortMode) !== sortMode ||
+      readSearch() !== searchText
     )
       renderCards();
     controls.forEach((button, index) => {
@@ -334,10 +353,21 @@ export function mountNavigation(
     }
   }
 
+  function onSearch(event: Event) {
+    if (
+      selected &&
+      event.target instanceof view!.HTMLInputElement &&
+      event.target.matches(SEARCH)
+    )
+      renderCards();
+  }
+
   function start() {
     (document.head ?? document.documentElement).append(style);
     document.addEventListener("click", onNativeClick, true);
     document.addEventListener("mousedown", onNativeClick, true);
+    document.addEventListener("input", onSearch, true);
+    document.addEventListener("change", onSearch, true);
     view!.addEventListener("resize", alignTabs);
     if (typeof view!.ResizeObserver === "function")
       resizeObserver = new view!.ResizeObserver(alignTabs);
@@ -375,6 +405,8 @@ export function mountNavigation(
     resizeObserver?.disconnect();
     document.removeEventListener("click", onNativeClick, true);
     document.removeEventListener("mousedown", onNativeClick, true);
+    document.removeEventListener("input", onSearch, true);
+    document.removeEventListener("change", onSearch, true);
     view?.removeEventListener("resize", alignTabs);
     document.removeEventListener("DOMContentLoaded", start);
     view?.removeEventListener("pagehide", dispose);
