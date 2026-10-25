@@ -49,6 +49,8 @@ This preview supports catalogue extensions, themes, snippets and apps. Installed
 
 Marketplace's navigation contains **Favorites** and **Not Interesed**, immediately following the native tabs after **Installed**. Each shows cards marked with its button, or an empty-state message. Cards retain their title, image, subtitle, description and safe outbound link even after the source DOM is replaced while browsing. The same classification controls work in the saved sections. This preview renders presentation snapshots without duplicating native install/remove controls; those actions remain available on the original Marketplace cards.
 
+Catalogue cards use three evenly spaced, matching 40px outlined action buttons: Favorites, Not Interesed and the native install/remove/repository action. The native button and its handlers stay in place; CSS aligns it with the list buttons and preserves hover and keyboard focus visibility. Saved cards keep their two list buttons symmetrically spaced.
+
 Both lists group cards vertically in this order: **Extensions → Themes → Snippets → Apps**. Each nonempty group uses Marketplace's `h2.marketplace-card-type-heading` and a native card grid below it. Empty categories are omitted, matching Marketplace's grouped layout. Moving or removing a card updates its group immediately.
 
 Saved cards retain Marketplace's installed class and checkmarked label, including its native installed border. This presentation refreshes when an eligible native card reports a changed installation state, without changing its saved list. When its native card is absent, the snapshot keeps the last observed state. Installation status is read from Marketplace's DOM; saved views still do not provide install/remove actions.

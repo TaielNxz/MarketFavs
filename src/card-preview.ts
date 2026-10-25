@@ -9,27 +9,55 @@ const TYPES = ["extension", "theme", "snippet", "app"];
 
 const styles = `
 .marketplace-grid ${CARD}[${FILTERED}] { display: none !important; }
+${GRID} ${CARD}:has(${ROW}) .main-card-cardMetadata {
+  position: relative;
+}
 ${GRID} ${ROW} {
-  display: flex;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  justify-items: center;
   box-sizing: border-box;
-  min-height: 44px;
+  min-height: 52px;
   margin-top: auto;
   padding-top: 12px;
-  padding-inline-end: 44px;
+  padding-inline: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+${GRID} ${CARD}:has(.marketplace-installButton) ${ROW} {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+${GRID} ${CARD}:has(${ROW}) .main-card-PlayButtonContainer {
+  position: absolute;
+  inset: auto 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% / 3);
+  height: 40px;
+  margin: 0;
+  transform: none;
   opacity: 0;
   pointer-events: none;
 }
 ${GRID} ${CARD}:hover ${ROW},
-${GRID} ${CARD}:focus-within ${ROW} {
+${GRID} ${CARD}:focus-within ${ROW},
+${GRID} ${CARD}:has(${ROW}):hover .main-card-PlayButtonContainer,
+${GRID} ${CARD}:has(${ROW}):focus-within .main-card-PlayButtonContainer {
   opacity: 1;
   pointer-events: auto;
 }
-${GRID} ${ROW} button {
+${GRID} ${ROW} button,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton {
+  --size: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-top: auto;
+  box-sizing: border-box;
+  margin: 0;
+  min-width: 40px;
   width: 40px;
   height: 40px;
   padding: 6px;
@@ -37,18 +65,35 @@ ${GRID} ${ROW} button {
   border-radius: 50%;
   color: var(--spice-subtext, #b3b3b3);
   background: transparent;
+  box-shadow: none;
+  transform: none;
+  opacity: 1;
   cursor: pointer;
 }
 ${GRID} ${ROW} button[aria-pressed="true"] {
   color: var(--spice-button, #1db954);
   border-color: currentColor;
 }
-${GRID} ${ROW} button:hover { color: var(--spice-text, #fff); }
-${GRID} ${ROW} button:focus-visible {
+${GRID} ${ROW} button:hover,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:hover {
+  color: var(--spice-text, #fff);
+}
+${GRID} ${ROW} button:focus-visible,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:focus-visible {
   outline: 2px solid var(--spice-text, #fff);
   outline-offset: 2px;
 }
-${GRID} ${ROW} svg { width: 18px; height: 18px; flex-shrink: 0; }
+${GRID} ${ROW} button:disabled,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+${GRID} ${ROW} svg,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
 `;
 
 function isEligible(card: Element): boolean {
