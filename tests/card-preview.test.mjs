@@ -30,7 +30,7 @@ function fixture(t, html) {
   return dom.window;
 }
 
-test("adds two inert footer buttons to all four catalogue card types and preserves native actions", (t) => {
+test("adds two classification buttons to all four catalogue card types and preserves native actions", (t) => {
   const window = fixture(
     t,
     [
@@ -62,7 +62,8 @@ test("adds two inert footer buttons to all four catalogue card types and preserv
     );
     for (const button of buttons) {
       assert.equal(button.type, "button");
-      assert.equal(button.getAttribute("aria-disabled"), "true");
+      assert.equal(button.getAttribute("aria-disabled"), null);
+      assert.ok(button.hasAttribute("aria-pressed"));
       assert.equal(button.tabIndex, 0);
       button.click();
     }

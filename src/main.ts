@@ -1,5 +1,6 @@
 import { mountCardPreview } from "./card-preview"; // Component that adds buttons to each card in the marketplace grid
 import { mountNavigation } from "./navigation"; // Component that adds a navigation bar to the marketplace page
+import { createSavedCards } from "./saved-cards";
 
 console.info("[MarketFavs] Development scaffold loaded.");
 
@@ -9,8 +10,9 @@ if (typeof document !== "undefined") {
     [key: symbol]: (() => void) | undefined;
   };
   runtime[key]?.();
-  const disposeCards = mountCardPreview(document);
-  const disposeNavigation = mountNavigation(document);
+  const savedCards = createSavedCards();
+  const disposeCards = mountCardPreview(document, savedCards);
+  const disposeNavigation = mountNavigation(document, savedCards);
   runtime[key] = () => {
     disposeCards();
     disposeNavigation();

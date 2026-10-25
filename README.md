@@ -1,6 +1,6 @@
 # MarketFavs
 
-An independent Spicetify extension with a visual preview of favorites and not-interested buttons on Marketplace cards. The buttons have no classification, storage or installation actions yet.
+An independent Spicetify extension that adds favorites and not-interested buttons to Marketplace cards. This session preview populates two saved sections while keeping the original catalogue visible. Lists reset when Spotify or the extension reloads; persistent storage is not implemented yet.
 
 ## Start developing
 
@@ -37,23 +37,26 @@ spicetify config extensions marketfavs.js
 spicetify apply
 ```
 
-The CLI discovers the extension directory for this installation. Registration adds MarketFavs to Spicetify's extensions. Applying may reload Spotify. After editing, rebuild and copy both files again, then run `spicetify -e refresh`. `npm run dev` alone only rebuilds the repository output.
+The CLI discovers the extension directory for this installation. Registration adds MarketFavs to Spicetify's extensions. Applying may reload Spotify. After editing, rebuild and copy both files again, then run `spicetify -e refresh restart`. `npm run dev` alone only rebuilds the repository output.
 
-Open Marketplace and hover or keyboard-focus a card. Two outlined icon buttons, labeled “Favoritos” and “No me interesa”, appear at its foot. Clicking or activating them does nothing and does not open the card or activate its native install action. Cards loaded later receive the same controls without duplicates.
+Open Marketplace and hover or keyboard-focus a card. Two outlined icon buttons, labeled “Favoritos” and “No me interesa”, appear at its foot. Click one to add the card to its section. Click the active button to clear the classification, or the other button to switch lists. Active buttons use an accent color and expose their pressed state to assistive technology. Enter and Space also activate the buttons without opening the card or triggering installation. Cards loaded later receive the same controls without duplicates.
 
 This preview supports catalogue extensions, themes, snippets and apps. Installed extensions and themes also receive controls. Snippets in the Installed tab are excluded because their DOM does not distinguish catalogue items from manually created snippets. No stored Marketplace data is read to infer that distinction.
 
-## Saved-list navigation preview
+## Saved sections
 
-Marketplace's navigation also contains **Favorites** and **Not Interesed**, immediately following the native tabs after **Installed**. Both open empty sections; the card buttons remain inert and do not populate these views yet. Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
+Marketplace's navigation contains **Favorites** and **Not Interesed**, immediately following the native tabs after **Installed**. Each shows cards marked with its button, or an empty-state message. Cards retain their title, image, subtitle, description and safe outbound link even after the source DOM is replaced while browsing. The same classification controls work in the saved sections. This preview renders presentation snapshots without duplicating native install/remove controls; those actions remain available on the original Marketplace cards.
 
-The two controls use native tab styling and are positioned immediately after the last visible native tab. Their DOM list stays separate, preserving the width and item measurements used by Marketplace's More menu. Alignment updates when navigation or window size changes. The adapter coordinates active classes and accessibility state across both lists while preserving native callbacks, including More's mouse-down selection. Saved-section selection exists only in memory; no Marketplace configuration or saved preferences are written by the adapter.
+Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
+
+The two controls use native tab styling and are positioned immediately after the last visible native tab. Their DOM list stays separate, preserving the width and item measurements used by Marketplace's More menu. Alignment updates when navigation or window size changes. The adapter coordinates active classes and accessibility state across both lists while preserving native callbacks, including More's mouse-down selection. No Marketplace configuration or saved preferences are written by the adapter.
 
 ## Project layout
 
 - `src/main.ts`: browser entry point with cleanup when the preview is reloaded.
-- `src/card-preview.ts`: scoped DOM adapter, inert controls, styles and lifecycle cleanup.
-- `src/navigation.ts`: saved-list navigation, empty sections and catalogue restoration.
+- `src/card-preview.ts`: scoped DOM adapter, classification controls, styles and lifecycle cleanup.
+- `src/saved-cards.ts`: shared session state, presentation snapshots and safe card rendering.
+- `src/navigation.ts`: saved-list navigation, card grids and catalogue restoration.
 - `tests/`: bundle smoke test and DOM integration tests using Node's built-in runner.
 - `tsconfig.json`: strict browser-source type checking.
 - `package-lock.json`: exact dependency tree for reproducible installs.
@@ -63,9 +66,9 @@ TypeScript, esbuild, Prettier and jsdom are development dependencies. There are 
 
 ## Scope and next work
 
-The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. The current implementation scope is local installation, visual-only card controls and empty saved-list sections. Classification and persistence remain separate work.
+The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. The current implementation adds session-only classification and saved-card previews. Persistent account storage, native actions within saved sections, Marketplace ordering and durable item identity remain future integration work.
 
-The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. Future compatibility, item identity and Spicetify API typings require further validation. Storage schema and recovery details remain open in planning. The preview does not access account data, save preferences, fetch a catalogue or publish anything.
+The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. The session key combines card type, outbound link, title and subtitle; identical presentations share a classification, but this is not an authoritative manifest identifier. Storage schema and recovery details remain open in planning. The preview does not access account data, save preferences, fetch a catalogue or publish anything.
 
 Review and commit changes manually. A publication manifest and license can be added when distribution is scoped.
 

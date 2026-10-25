@@ -1,10 +1,16 @@
+import { renderSavedCard, type SavedCards } from "./saved-cards";
+
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
 const NATIVE_LIST = ".marketplace-tabBar-header";
 const ACTIVE = "marketplace-tabBar-active";
 const entries = [
-  { label: "Favorites", empty: "No favorites yet." },
-  { label: "Not Interesed", empty: "No items marked as not interested yet." },
+  { label: "Favorites", list: "favorites", empty: "No favorites yet." },
+  {
+    label: "Not Interesed",
+    list: "not-interested",
+    empty: "No items marked as not interested yet.",
+  },
 ] as const;
 
 const styles = `
@@ -55,8 +61,9 @@ section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view
 }
 .marketfavs-saved-view { padding-block: 24px; }
 .marketfavs-saved-view[hidden] { display: none; }
-.marketfavs-saved-view p { margin-block: 16px; color: var(--spice-subtext, #b3b3b3); }
-.marketfavs-saved-view button {
+.marketfavs-saved-view > p { margin-block: 16px; color: var(--spice-subtext, #b3b3b3); }
+.marketfavs-saved-grid { margin-block: 24px; }
+.marketfavs-saved-view > button {
   border: 1px solid var(--spice-button-disabled, #535353);
   border-radius: 20px;
   padding: 8px 16px;
@@ -66,7 +73,10 @@ section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view
 }
 `;
 
-export function mountNavigation(document: Document): () => void {
+export function mountNavigation(
+  document: Document,
+  savedCards: SavedCards,
+): () => void {
   const view = document.defaultView;
   if (!view) return () => {};
   let selected: (typeof entries)[number] | undefined;
@@ -93,6 +103,22 @@ export function mountNavigation(document: Document): () => void {
   const heading = document.createElement("h2");
   heading.id = "marketfavs-section-title";
   const empty = document.createElement("p");
+  const notice = document.createElement("small");
+  notice.textContent =
+    "Session preview: lists reset when Spotify or the extension reloads.";
+  const grid = document.createElement("div");
+  grid.className =
+    "marketfavs-saved-grid marketplace-grid main-gridContainer-gridContainer main-gridContainer-fixedWidth";
+  let rendered: typeof selected;
+  function renderCards() {
+    rendered = selected;
+    const cards = selected ? savedCards.items(selected.list) : [];
+    empty.hidden = cards.length > 0;
+    grid.replaceChildren(
+      ...cards.map((card) => renderSavedCard(document, card)),
+    );
+  }
+  const unsubscribe = savedCards.subscribe(renderCards);
   const back = document.createElement("button");
   back.type = "button";
   back.textContent = "Back to Marketplace";
@@ -101,7 +127,7 @@ export function mountNavigation(document: Document): () => void {
     sync(nativeTab);
     links.querySelector<HTMLButtonElement>("button")?.focus();
   });
-  panel.append(heading, empty, back);
+  panel.append(heading, notice, empty, grid, back);
   const controls = entries.map((entry) => {
     const item = document.createElement("li");
     item.className = "marketplace-tabBar-headerItem";
@@ -245,6 +271,7 @@ export function mountNavigation(document: Document): () => void {
       heading.textContent = selected?.label ?? "";
     if (empty.textContent !== (selected?.empty ?? ""))
       empty.textContent = selected?.empty ?? "";
+    if (rendered !== selected) renderCards();
     controls.forEach((button, index) => {
       button.setAttribute("aria-pressed", String(selected === entries[index]));
       setActive(button, selected === entries[index]);
@@ -304,6 +331,7 @@ export function mountNavigation(document: Document): () => void {
   }
 
   function dispose() {
+    unsubscribe();
     observer?.disconnect();
     resizeObserver?.disconnect();
     document.removeEventListener("click", onNativeClick, true);

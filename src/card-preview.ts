@@ -1,4 +1,6 @@
-const GRID = ".marketplace-grid";
+import { readCard, type SavedCards, type SavedList } from "./saved-cards";
+
+const GRID = ":is(.marketplace-grid, .marketfavs-saved-grid)";
 const CARD = ".main-card-card";
 const ROW = ".marketfavs-preview-actions";
 const STYLE_ID = "marketfavs-preview-style";
@@ -33,7 +35,11 @@ ${GRID} ${ROW} button {
   border-radius: 50%;
   color: var(--spice-subtext, #b3b3b3);
   background: transparent;
-  cursor: default;
+  cursor: pointer;
+}
+${GRID} ${ROW} button[aria-pressed="true"] {
+  color: var(--spice-button, #1db954);
+  border-color: currentColor;
 }
 ${GRID} ${ROW} button:hover { color: var(--spice-text, #fff); }
 ${GRID} ${ROW} button:focus-visible {
@@ -58,7 +64,8 @@ function isEligible(card: Element): boolean {
       card.classList.contains(`marketplace-card--${type}`),
     ) &&
     (!card.classList.contains("marketplace-card--snippet") ||
-      grid.getAttribute("data-tab") === "Snippets")
+      grid.getAttribute("data-tab") === "Snippets" ||
+      grid.classList.contains("marketfavs-saved-grid"))
   );
 }
 
@@ -67,7 +74,7 @@ function createButton(document: Document, label: string, path: string) {
   button.type = "button";
   button.title = label;
   button.setAttribute("aria-label", label);
-  button.setAttribute("aria-disabled", "true");
+  button.setAttribute("aria-pressed", "false");
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24");
   icon.setAttribute("aria-hidden", "true");
@@ -82,7 +89,10 @@ function createButton(document: Document, label: string, path: string) {
   return button;
 }
 
-export function mountCardPreview(document: Document): () => void {
+export function mountCardPreview(
+  document: Document,
+  savedCards: SavedCards,
+): () => void {
   // Obtains the window associated with the document. If it does not exist, returns an empty function
   const view = document.defaultView;
   if (!view) return () => {};
@@ -91,13 +101,19 @@ export function mountCardPreview(document: Document): () => void {
   style.id = STYLE_ID;
   style.textContent = styles;
   let observer: MutationObserver | undefined;
+  const unsubscribe = savedCards.subscribe(scan);
+
+  function cardData(card: Element) {
+    const key = card.getAttribute("data-marketfavs-key");
+    return key ? savedCards.get(key)?.card : readCard(card);
+  }
 
   function scan() {
     /* 
       Scans the document for eligible cards and adds preview actions to them. 
     */
 
-    // Remove any existing preview action rows that are no longer eligible 
+    // Remove any existing preview action rows that are no longer eligible
     // (e.g., if the card has been removed or is no longer eligible)
     for (const row of document.querySelectorAll(ROW)) {
       const card = row.closest(CARD);
@@ -106,9 +122,23 @@ export function mountCardPreview(document: Document): () => void {
 
     // Add preview action rows to eligible cards that do not already have one
     for (const card of document.querySelectorAll(`${GRID} ${CARD}`)) {
-
       // Ignore certaint cards: that are Not eligible. Already has 'Favorites' and 'Not Intered' buttons. Does not have a metadata section.
-      if (!isEligible(card) || card.querySelector(ROW)) continue;
+      if (!isEligible(card)) continue;
+      const existing = card.querySelector(ROW);
+      if (existing) {
+        const item = cardData(card);
+        for (const button of existing.querySelectorAll<HTMLButtonElement>(
+          "button[data-list]",
+        ))
+          button.setAttribute(
+            "aria-pressed",
+            String(
+              item !== undefined &&
+                savedCards.get(item.key)?.list === button.dataset.list,
+            ),
+          );
+        continue;
+      }
       const metadata = card.querySelector(".main-card-cardMetadata");
       if (!metadata) continue;
 
@@ -129,14 +159,33 @@ export function mountCardPreview(document: Document): () => void {
           "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM5.6 5.6l12.8 12.8",
         ),
       );
+      const lists: SavedList[] = ["favorites", "not-interested"];
+      row.querySelectorAll("button").forEach((button, index) => {
+        const list = lists[index]!;
+        button.dataset.list = list;
+        const item = cardData(card);
+        button.setAttribute(
+          "aria-pressed",
+          String(item !== undefined && savedCards.get(item.key)?.list === list),
+        );
+      });
       row.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
+        const button =
+          event.target instanceof view!.Element
+            ? event.target.closest<HTMLButtonElement>("button[data-list]")
+            : null;
+        const item = cardData(card);
+        if (button && item)
+          savedCards.toggle(item, button.dataset.list as SavedList);
       });
       row.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           event.stopPropagation();
+          if (event.target instanceof view!.HTMLButtonElement)
+            event.target.click();
         }
       });
       metadata.append(row);
@@ -154,7 +203,7 @@ export function mountCardPreview(document: Document): () => void {
     (document.head ?? document.documentElement).append(style);
     scan();
 
-    // Define a MutationObserver to watch for changes in the document that may affect the marketplace grid. 
+    // Define a MutationObserver to watch for changes in the document that may affect the marketplace grid.
     observer = new view!.MutationObserver((records) => {
       const touchesMarketplace = records.some((record) => {
         // Check if the target of the mutation is an element within a marketplace grid.
@@ -178,7 +227,6 @@ export function mountCardPreview(document: Document): () => void {
       attributes: true,
       attributeFilter: ["data-tab"],
     });
-
   }
 
   function dispose() {
@@ -186,6 +234,7 @@ export function mountCardPreview(document: Document): () => void {
       Cleans up the card preview functionality 
     */
     observer?.disconnect();
+    unsubscribe();
     document.removeEventListener("DOMContentLoaded", start);
     view?.removeEventListener("pagehide", dispose);
     document.querySelectorAll(ROW).forEach((row) => row.remove());
