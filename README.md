@@ -1,6 +1,6 @@
 # MarketFavs
 
-An independent Spicetify extension that adds favorites and not-interested buttons to Marketplace cards. This session preview populates two saved sections while keeping the original catalogue visible. Lists reset when Spotify or the extension reloads; persistent storage is not implemented yet.
+An independent Spicetify extension that adds favorites and not-interested buttons to Marketplace cards. Classified items appear in their saved section and are hidden from catalogue categories. Installed keeps every item visible. Lists reset when Spotify or the extension reloads; persistent storage is not implemented yet.
 
 ## Start developing
 
@@ -40,6 +40,8 @@ spicetify apply
 The CLI discovers the extension directory for this installation. Registration adds MarketFavs to Spicetify's extensions. Applying may reload Spotify. After editing, rebuild and copy both files again, then run `spicetify -e refresh restart`. `npm run dev` alone only rebuilds the repository output.
 
 Open Marketplace and hover or keyboard-focus a card. Two outlined icon buttons, labeled “Favoritos” and “No me interesa”, appear at its foot. Click one to add the card to its section. Click the active button to clear the classification, or the other button to switch lists. Active buttons use an accent color and expose their pressed state to assistive technology. Enter and Space also activate the buttons without opening the card or triggering installation. Cards loaded later receive the same controls without duplicates.
+
+Marking a card hides it from the catalogue immediately. Clear its active button in the saved section to show it again. Switching lists keeps it hidden. **Installed** continues to show all installed items regardless of classification. Hidden cards remain in Marketplace's DOM, preserving native lifecycle and pagination; **Load more** remains available when all loaded cards are classified. Leaving or reloading the extension restores visibility.
 
 This preview supports catalogue extensions, themes, snippets and apps. Installed extensions and themes also receive controls. Snippets in the Installed tab are excluded because their DOM does not distinguish catalogue items from manually created snippets. No stored Marketplace data is read to infer that distinction.
 

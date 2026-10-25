@@ -157,3 +157,35 @@ test("excludes Installed snippets whose catalogue provenance cannot be establish
   await settle(window);
   assert.equal(snippetGrid.querySelector(".marketfavs-preview-actions"), null);
 });
+
+test("filtering an entire loaded page preserves Load more and restores cards on cleanup", async (t) => {
+  const window = fixture(
+    t,
+    `${grid("extension", "Extensions")}<button id="load-more">Load more</button>`,
+  );
+  const { document } = window;
+  const more = document.querySelector("#load-more");
+  let loads = 0;
+  more.addEventListener("click", () => {
+    loads++;
+    document
+      .querySelector(".marketplace-grid")
+      .insertAdjacentHTML("beforeend", card("extension"));
+  });
+  window.eval(bundle);
+  const original = document.querySelector(".main-card-card");
+  original.querySelector('button[aria-label="No me interesa"]').click();
+  assert.equal(window.getComputedStyle(original).display, "none");
+  assert.ok(original.isConnected);
+  assert.notEqual(window.getComputedStyle(more).display, "none");
+  more.click();
+  await settle(window);
+  assert.equal(loads, 1);
+  for (const element of document.querySelectorAll(".main-card-card"))
+    assert.equal(window.getComputedStyle(element).display, "none");
+  window.dispatchEvent(new window.Event("pagehide"));
+  for (const element of document.querySelectorAll(".main-card-card")) {
+    assert.notEqual(window.getComputedStyle(element).display, "none");
+    assert.equal(element.hasAttribute("data-marketfavs-filtered"), false);
+  }
+});

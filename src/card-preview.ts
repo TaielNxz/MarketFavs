@@ -4,9 +4,11 @@ const GRID = ":is(.marketplace-grid, .marketfavs-saved-grid)";
 const CARD = ".main-card-card";
 const ROW = ".marketfavs-preview-actions";
 const STYLE_ID = "marketfavs-preview-style";
+const FILTERED = "data-marketfavs-filtered";
 const TYPES = ["extension", "theme", "snippet", "app"];
 
 const styles = `
+.marketplace-grid ${CARD}[${FILTERED}] { display: none !important; }
 ${GRID} ${ROW} {
   display: flex;
   gap: 8px;
@@ -119,14 +121,27 @@ export function mountCardPreview(
       const card = row.closest(CARD);
       if (!card || !isEligible(card)) row.remove();
     }
+    for (const card of document.querySelectorAll(`[${FILTERED}]`)) {
+      if (!card.closest(GRID)) card.removeAttribute(FILTERED);
+    }
 
     // Add preview action rows to eligible cards that do not already have one
     for (const card of document.querySelectorAll(`${GRID} ${CARD}`)) {
       // Ignore certaint cards: that are Not eligible. Already has 'Favorites' and 'Not Intered' buttons. Does not have a metadata section.
-      if (!isEligible(card)) continue;
+      if (!isEligible(card)) {
+        card.removeAttribute(FILTERED);
+        continue;
+      }
+      const item = cardData(card);
+      const grid = card.closest(GRID)!;
+      const filtered =
+        !grid.classList.contains("marketfavs-saved-grid") &&
+        grid.getAttribute("data-tab") !== "Installed" &&
+        item !== undefined &&
+        savedCards.get(item.key) !== undefined;
+      card.toggleAttribute(FILTERED, filtered);
       const existing = card.querySelector(ROW);
       if (existing) {
-        const item = cardData(card);
         for (const button of existing.querySelectorAll<HTMLButtonElement>(
           "button[data-list]",
         ))
@@ -238,6 +253,9 @@ export function mountCardPreview(
     document.removeEventListener("DOMContentLoaded", start);
     view?.removeEventListener("pagehide", dispose);
     document.querySelectorAll(ROW).forEach((row) => row.remove());
+    document
+      .querySelectorAll(`[${FILTERED}]`)
+      .forEach((card) => card.removeAttribute(FILTERED));
     style.remove();
   }
 

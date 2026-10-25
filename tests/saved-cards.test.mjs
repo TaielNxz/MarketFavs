@@ -19,7 +19,7 @@ const card = (
     <button class="marketplace-installButton">Install</button>
   </div></div>`;
 
-test("classifies all four card types exclusively, toggles membership and keeps native cards and actions", async (t) => {
+test("classifies all four card types exclusively, toggles membership and preserves native DOM and actions", async (t) => {
   const dom = new JSDOM(
     `<nav class="marketplace-tabBar-nav"><ul class="marketplace-tabBar-header">
     <li data-tab="Extensions"><a class="marketplace-tabBar-headerItemLink marketplace-tabBar-active">Extensions</a></li>
@@ -56,6 +56,8 @@ test("classifies all four card types exclusively, toggles membership and keeps n
   const saved = () => [...panel.querySelectorAll(".main-card-card")];
   for (const original of nativeCards)
     original.querySelector('button[aria-label="Favoritos"]').click();
+  for (const original of nativeCards)
+    assert.equal(window.getComputedStyle(original).display, "none");
   tabs[0].click();
   assert.equal(saved().length, 4);
   const savedGrid = panel.querySelector(".marketfavs-saved-grid");
@@ -63,6 +65,7 @@ test("classifies all four card types exclusively, toggles membership and keeps n
   assert.ok(savedGrid.classList.contains("main-gridContainer-gridContainer"));
   assert.ok(savedGrid.classList.contains("main-gridContainer-fixedWidth"));
   for (const snapshot of saved()) {
+    assert.notEqual(window.getComputedStyle(snapshot).display, "none");
     assert.ok(
       snapshot.querySelector(
         ":scope > .main-card-draggable > .main-card-imageContainer > .main-cardImage-imageWrapper > div > img.main-cardImage-image",
@@ -100,6 +103,23 @@ test("classifies all four card types exclusively, toggles membership and keeps n
       .getAttribute("aria-pressed"),
     "true",
   );
+  const nativeGrids = nativeCards.map((original) =>
+    original.closest(".marketplace-grid"),
+  );
+  nativeGrids.forEach((grid) => {
+    grid.dataset.tab = "Installed";
+  });
+  await settle();
+  for (const original of nativeCards)
+    assert.notEqual(window.getComputedStyle(original).display, "none");
+  nativeGrids.forEach((grid, index) => {
+    grid.dataset.tab = index === 2 ? "Snippets" : "Extensions";
+  });
+  await settle();
+  for (const original of nativeCards)
+    assert.equal(window.getComputedStyle(original).display, "none");
+  await settle();
+  tabs[0].click();
   await settle();
   saved()[0].querySelector('button[aria-label="No me interesa"]').click();
   assert.equal(saved().length, 3);
@@ -113,6 +133,7 @@ test("classifies all four card types exclusively, toggles membership and keeps n
   saved()[0].querySelector('button[aria-label="No me interesa"]').click();
   assert.equal(saved().length, 0);
   assert.equal(panel.querySelector("p").hidden, false);
+  assert.notEqual(window.getComputedStyle(nativeCards[0]).display, "none");
   assert.equal(
     nativeCards[0]
       .querySelector('button[aria-label="Favoritos"]')
@@ -143,6 +164,10 @@ test("classifies all four card types exclusively, toggles membership and keeps n
     'button[aria-label="Favoritos"]',
   );
   assert.equal(replacement.getAttribute("aria-pressed"), "true");
+  assert.equal(
+    window.getComputedStyle(replacement.closest(".main-card-card")).display,
+    "none",
+  );
   replacement.dispatchEvent(
     new window.KeyboardEvent("keydown", {
       key: " ",
@@ -151,8 +176,16 @@ test("classifies all four card types exclusively, toggles membership and keeps n
     }),
   );
   assert.equal(saved().length, 3);
+  assert.notEqual(
+    window.getComputedStyle(replacement.closest(".main-card-card")).display,
+    "none",
+  );
   replacement.click();
   assert.equal(saved().length, 4);
+  assert.equal(
+    window.getComputedStyle(replacement.closest(".main-card-card")).display,
+    "none",
+  );
   assert.equal(
     saved().filter(
       (item) =>
@@ -179,6 +212,12 @@ test("classifies all four card types exclusively, toggles membership and keeps n
   assert.equal(window.localStorage.getItem("unrelated"), "preserved");
   window.eval(bundle);
   await settle();
+  for (const original of document.querySelectorAll(
+    ".marketplace-grid:not(.marketfavs-saved-grid) .main-card-card",
+  )) {
+    assert.notEqual(window.getComputedStyle(original).display, "none");
+    assert.equal(original.hasAttribute("data-marketfavs-filtered"), false);
+  }
   document.querySelector(".marketfavs-navigation button").click();
   assert.equal(
     document.querySelectorAll(".marketfavs-saved-grid .main-card-card").length,
