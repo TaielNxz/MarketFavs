@@ -110,6 +110,21 @@ export function mountCardPreview(
     return key ? savedCards.get(key)?.card : readCard(card);
   }
 
+  function refresh() {
+    const cards = [
+      ...document.querySelectorAll(
+        `.marketplace-grid:not(.marketfavs-saved-grid) ${CARD}`,
+      ),
+    ]
+      .filter(isEligible)
+      .flatMap((card) => {
+        const item = readCard(card);
+        return item ? [item] : [];
+      });
+    savedCards.updateInstallation(cards);
+    scan();
+  }
+
   function scan() {
     /* 
       Scans the document for eligible cards and adds preview actions to them. 
@@ -216,7 +231,7 @@ export function mountCardPreview(
 
     // Insert the styles and scan for eligible cards
     (document.head ?? document.documentElement).append(style);
-    scan();
+    refresh();
 
     // Define a MutationObserver to watch for changes in the document that may affect the marketplace grid.
     observer = new view!.MutationObserver((records) => {
@@ -234,13 +249,13 @@ export function mountCardPreview(
             (node.matches(GRID) || node.querySelector(GRID)),
         );
       });
-      if (touchesMarketplace) scan();
+      if (touchesMarketplace) refresh();
     });
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["data-tab"],
+      attributeFilter: ["data-tab", "class"],
     });
   }
 

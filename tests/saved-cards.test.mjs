@@ -331,3 +331,88 @@ test("both saved lists group cards by type in Marketplace order and update group
   assert.equal(groups()[0].querySelectorAll(".main-card-card").length, 1);
   for (const original of originals) assert.ok(original.isConnected);
 });
+
+test("favorites preserve and refresh native installed styling without changing classification", async (t) => {
+  const dom = new JSDOM(
+    `<nav class="marketplace-tabBar-nav"><ul class="marketplace-tabBar-header"></ul></nav>
+    <section class="contentSpacing"><header class="marketplace-header"></header>
+    <div class="marketplace-grid" data-tab="Extensions">${card("extension", "Installed favorite")}${card("extension", "Other favorite")}</div></section>`,
+    { url: "https://xpui.app.spotify.com", runScripts: "outside-only" },
+  );
+  const { window } = dom;
+  const { document } = window;
+  window.console.info = () => {};
+  t.after(() => {
+    window.dispatchEvent(new window.Event("pagehide"));
+    window.close();
+  });
+  const settle = () => new Promise((resolve) => window.setTimeout(resolve, 0));
+  const [original, other] = [...document.querySelectorAll(".main-card-card")];
+  original.classList.add("marketplace-card--installed");
+  original
+    .querySelector(".main-card-cardMetadata")
+    .insertAdjacentHTML(
+      "beforeend",
+      '<div class="marketplace-card__bottom-meta main-type-mestoBold">✓ Installed</div>',
+    );
+  window.eval(bundle);
+  original.querySelector('button[aria-label="Favoritos"]').click();
+  other.querySelector('button[aria-label="Favoritos"]').click();
+  const favorites = document.querySelector(".marketfavs-navigation button");
+  favorites.click();
+  const saved = () => [
+    ...document.querySelectorAll(".marketfavs-saved-grid .main-card-card"),
+  ];
+  assert.equal(
+    saved()[0].classList.contains("marketplace-card--installed"),
+    true,
+  );
+  assert.equal(
+    saved()[0].querySelector(".marketplace-card__bottom-meta").textContent,
+    "✓ Installed",
+  );
+  assert.equal(
+    saved()[1].classList.contains("marketplace-card--installed"),
+    false,
+  );
+  assert.equal(
+    saved()[1].querySelector(".marketplace-card__bottom-meta"),
+    null,
+  );
+  original.querySelector(".marketplace-card__bottom-meta").remove();
+  original.classList.remove("marketplace-card--installed");
+  await settle();
+  assert.equal(saved().length, 2);
+  assert.equal(
+    saved()[0].classList.contains("marketplace-card--installed"),
+    false,
+  );
+  assert.equal(
+    saved()[0].querySelector(".marketplace-card__bottom-meta"),
+    null,
+  );
+  // A class-only native update must also refresh Favorites without a DOM replacement.
+  original.classList.add("marketplace-card--installed");
+  await settle();
+  assert.equal(
+    saved()[0].classList.contains("marketplace-card--installed"),
+    true,
+  );
+  assert.equal(
+    saved()[0].querySelector(".marketplace-card__bottom-meta").textContent,
+    "✓ Installed",
+  );
+  assert.equal(
+    saved()[0]
+      .querySelector('button[aria-label="Favoritos"]')
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  original.remove();
+  await settle();
+  assert.equal(
+    saved()[0].classList.contains("marketplace-card--installed"),
+    true,
+  );
+  assert.equal(saved().length, 2);
+});

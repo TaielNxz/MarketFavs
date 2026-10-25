@@ -7,6 +7,8 @@ export type SavedCard = {
   description: string;
   image: string;
   href: string;
+  installed: boolean;
+  installedLabel: string;
 };
 
 // Session-only presentation identity. This is not a persistent catalogue identifier.
@@ -27,6 +29,12 @@ export function readCard(card: Element): SavedCard | undefined {
   const description =
     card.querySelector(".marketplace-card-desc")?.textContent ?? "";
   const image = webUrl(card.querySelector<HTMLImageElement>("img")?.src ?? "");
+  const installed = card.classList.contains("marketplace-card--installed");
+  const installedLabel = installed
+    ? ([...card.querySelectorAll(".marketplace-card__bottom-meta")]
+        .map((element) => element.textContent?.trim() ?? "")
+        .find((text) => text.startsWith("✓")) ?? "✓ Installed")
+    : "";
   return {
     key: JSON.stringify([type, href, title, subtitle]),
     type,
@@ -35,6 +43,8 @@ export function readCard(card: Element): SavedCard | undefined {
     description,
     image,
     href,
+    installed,
+    installedLabel,
   };
 }
 
@@ -52,6 +62,9 @@ function webUrl(value: string): string {
 export function createSavedCards() {
   const records = new Map<string, { card: SavedCard; list: SavedList }>();
   const listeners = new Set<() => void>();
+  function notify() {
+    for (const listener of listeners) listener();
+  }
   return {
     get(key: string) {
       return records.get(key);
@@ -64,7 +77,26 @@ export function createSavedCards() {
     toggle(card: SavedCard, list: SavedList) {
       if (records.get(card.key)?.list === list) records.delete(card.key);
       else records.set(card.key, { card, list });
-      for (const listener of listeners) listener();
+      notify();
+    },
+    updateInstallation(cards: SavedCard[]) {
+      let changed = false;
+      for (const card of cards) {
+        const record = records.get(card.key);
+        if (
+          !record ||
+          (record.card.installed === card.installed &&
+            record.card.installedLabel === card.installedLabel)
+        )
+          continue;
+        record.card = {
+          ...record.card,
+          installed: card.installed,
+          installedLabel: card.installedLabel,
+        };
+        changed = true;
+      }
+      if (changed) notify();
     },
     subscribe(listener: () => void) {
       listeners.add(listener);
@@ -84,6 +116,7 @@ export function renderSavedCard(
 ): HTMLElement {
   const card = document.createElement("div");
   card.className = `main-card-card marketplace-card--${item.type}`;
+  if (item.installed) card.classList.add("marketplace-card--installed");
   card.dataset.marketfavsKey = item.key;
   const content = document.createElement("div");
   content.className = "main-card-draggable";
@@ -128,6 +161,12 @@ export function renderSavedCard(
   description.className = "marketplace-card-desc";
   description.textContent = item.description;
   metadata.append(subtitle, description);
+  if (item.installed) {
+    const installed = document.createElement("div");
+    installed.className = "marketplace-card__bottom-meta main-type-mestoBold";
+    installed.textContent = item.installedLabel;
+    metadata.append(installed);
+  }
   content.append(imageContainer, metadata);
   card.append(content);
   return card;

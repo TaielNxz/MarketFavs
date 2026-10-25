@@ -51,6 +51,8 @@ Marketplace's navigation contains **Favorites** and **Not Interesed**, immediate
 
 Both lists group cards vertically in this order: **Extensions → Themes → Snippets → Apps**. Each nonempty group uses Marketplace's `h2.marketplace-card-type-heading` and a native card grid below it. Empty categories are omitted, matching Marketplace's grouped layout. Moving or removing a card updates its group immediately.
 
+Saved cards retain Marketplace's installed class and checkmarked label, including its native installed border. This presentation refreshes when an eligible native card reports a changed installation state, without changing its saved list. When its native card is absent, the snapshot keeps the last observed state. Installation status is read from Marketplace's DOM; saved views still do not provide install/remove actions.
+
 The original **Marketplace header** stays visible above both lists. It remains mounted in its original location, preserving native controls, search text, selected sort and callbacks without recreating or cloning it. Update and settings retain their native actions. Search and sorting still operate on Marketplace's underlying catalogue; filtering and ordering saved snapshots through those controls are not implemented yet.
 
 Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
