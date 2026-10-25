@@ -62,7 +62,7 @@ const styles = `
   outline: 2px solid var(--spice-text, #fff);
   outline-offset: -2px;
 }
-section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view) {
+section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view):not(.marketplace-header) {
   display: none !important;
 }
 .marketfavs-saved-view { padding-block: 24px; }

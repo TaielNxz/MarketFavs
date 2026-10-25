@@ -41,6 +41,14 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
   const nativeList = document.querySelector(".marketplace-tabBar-header");
   const header = document.querySelector(".marketplace-header");
   const footer = document.querySelector(".marketplace-footer");
+  const search = header.querySelector("input");
+  search.value = "Existing search";
+  const settings = document.createElement("button");
+  settings.id = "marketplace-settings-button";
+  settings.textContent = "Settings";
+  header.append(settings);
+  let settingsClicks = 0;
+  settings.addEventListener("click", () => settingsClicks++);
   window.localStorage.setItem("unrelated", "preserved");
   window.eval(bundle);
 
@@ -79,7 +87,16 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
         .length,
       1,
     );
-    assert.equal(window.getComputedStyle(header).display, "none");
+    assert.notEqual(window.getComputedStyle(header).display, "none");
+    assert.equal(document.querySelectorAll(".marketplace-header").length, 1);
+    assert.equal(document.querySelector(".marketplace-header"), header);
+    assert.equal(header.querySelector("input"), search);
+    assert.equal(search.value, "Existing search");
+    assert.equal(
+      header.querySelector("#marketplace-settings-button"),
+      settings,
+    );
+    settings.click();
     assert.equal(window.getComputedStyle(footer).display, "none");
     assert.ok(panel.querySelector("p").textContent.length > 0);
   }
@@ -89,6 +106,11 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
   assert.notEqual(window.getComputedStyle(footer).display, "none");
   assert.equal(document.querySelector(".marketplace-header"), header);
   assert.equal(document.querySelector(".marketplace-footer"), footer);
+  assert.equal(settingsClicks, 2);
+  window.dispatchEvent(new window.Event("pagehide"));
+  assert.equal(document.querySelector(".marketplace-header"), header);
+  assert.notEqual(window.getComputedStyle(header).display, "none");
+  assert.equal(search.value, "Existing search");
   assert.equal(window.localStorage.length, 1);
   assert.equal(window.localStorage.getItem("unrelated"), "preserved");
 });

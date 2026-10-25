@@ -51,6 +51,8 @@ Marketplace's navigation contains **Favorites** and **Not Interesed**, immediate
 
 Both lists group cards vertically in this order: **Extensions → Themes → Snippets → Apps**. Each nonempty group uses Marketplace's `h2.marketplace-card-type-heading` and a native card grid below it. Empty categories are omitted, matching Marketplace's grouped layout. Moving or removing a card updates its group immediately.
 
+The original **Marketplace header** stays visible above both lists. It remains mounted in its original location, preserving native controls, search text, selected sort and callbacks without recreating or cloning it. Update and settings retain their native actions. Search and sorting still operate on Marketplace's underlying catalogue; filtering and ordering saved snapshots through those controls are not implemented yet.
+
 Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
 
 The two controls use native tab styling and are positioned immediately after the last visible native tab. Their DOM list stays separate, preserving the width and item measurements used by Marketplace's More menu. Alignment updates when navigation or window size changes. The adapter coordinates active classes and accessibility state across both lists while preserving native callbacks, including More's mouse-down selection. No Marketplace configuration or saved preferences are written by the adapter.
