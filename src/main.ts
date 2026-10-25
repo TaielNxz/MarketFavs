@@ -1,4 +1,5 @@
 import { mountCardPreview } from "./card-preview";
+import { mountNavigation } from "./navigation";
 
 console.info("[MarketFavs] Development scaffold loaded.");
 
@@ -8,5 +9,10 @@ if (typeof document !== "undefined") {
     [key: symbol]: (() => void) | undefined;
   };
   runtime[key]?.();
-  runtime[key] = mountCardPreview(document);
+  const disposeCards = mountCardPreview(document);
+  const disposeNavigation = mountNavigation(document);
+  runtime[key] = () => {
+    disposeCards();
+    disposeNavigation();
+  };
 }

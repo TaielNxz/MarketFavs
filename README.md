@@ -43,10 +43,17 @@ Open Marketplace and hover or keyboard-focus a card. Two outlined icon buttons, 
 
 This preview supports catalogue extensions, themes, snippets and apps. Installed extensions and themes also receive controls. Snippets in the Installed tab are excluded because their DOM does not distinguish catalogue items from manually created snippets. No stored Marketplace data is read to infer that distinction.
 
+## Saved-list navigation preview
+
+Marketplace's navigation also contains **Favorites** and **Not Interesed**. Both open empty sections; the card buttons remain inert and do not populate these views yet. **Back to Marketplace** returns to the native catalogue without resetting its category. Changing a native category preserves the selected saved-list view.
+
+The two controls use a separate list beside Marketplace's native category list, allowing its existing More menu to continue measuring only native items. Their selection exists only in memory; no Marketplace configuration or saved preferences are changed.
+
 ## Project layout
 
 - `src/main.ts`: browser entry point with cleanup when the preview is reloaded.
 - `src/card-preview.ts`: scoped DOM adapter, inert controls, styles and lifecycle cleanup.
+- `src/navigation.ts`: saved-list navigation, empty sections and catalogue restoration.
 - `tests/`: bundle smoke test and DOM integration tests using Node's built-in runner.
 - `tsconfig.json`: strict browser-source type checking.
 - `package-lock.json`: exact dependency tree for reproducible installs.
@@ -56,7 +63,7 @@ TypeScript, esbuild, Prettier and jsdom are development dependencies. There are 
 
 ## Scope and next work
 
-The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. The current implementation scope is local installation and visual-only card controls. Classification, saved-list navigation and persistence remain separate work.
+The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. The current implementation scope is local installation, visual-only card controls and empty saved-list sections. Classification and persistence remain separate work.
 
 The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. Future compatibility, item identity and Spicetify API typings require further validation. Storage schema and recovery details remain open in planning. The preview does not access account data, save preferences, fetch a catalogue or publish anything.
 
