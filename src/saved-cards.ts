@@ -1,4 +1,5 @@
 import { createPersistentLists } from "./persistence";
+import { readCardSort, type SortMetadata } from "./sorting";
 
 export type SavedList = "favorites" | "not-interested";
 export type SavedCard = {
@@ -11,6 +12,7 @@ export type SavedCard = {
   href: string;
   installed: boolean;
   installedLabel: string;
+  sort?: SortMetadata;
 };
 
 // Presentation-based identity; this is not an authoritative catalogue identifier.
@@ -32,6 +34,7 @@ export function readCard(card: Element): SavedCard | undefined {
     card.querySelector(".marketplace-card-desc")?.textContent ?? "";
   const image = webUrl(card.querySelector<HTMLImageElement>("img")?.src ?? "");
   const installed = card.classList.contains("marketplace-card--installed");
+  const sort = readCardSort(card, type, title);
   const installedLabel = installed
     ? ([...card.querySelectorAll(".marketplace-card__bottom-meta")]
         .map((element) => element.textContent?.trim() ?? "")
@@ -47,6 +50,7 @@ export function readCard(card: Element): SavedCard | undefined {
     href,
     installed,
     installedLabel,
+    ...(sort ? { sort } : {}),
   };
 }
 

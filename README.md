@@ -53,7 +53,9 @@ Both lists group cards vertically in this order: **Extensions → Themes → Sni
 
 Saved cards retain Marketplace's installed class and checkmarked label, including its native installed border. This presentation refreshes when an eligible native card reports a changed installation state, without changing its saved list. When its native card is absent, the snapshot keeps the last observed state. Installation status is read from Marketplace's DOM; saved views still do not provide install/remove actions.
 
-The original **Marketplace header** stays visible above both lists. It remains mounted in its original location, preserving native controls, search text, selected sort and callbacks without recreating or cloning it. Update and settings retain their native actions. Search and sorting still operate on Marketplace's underlying catalogue; filtering and ordering saved snapshots through those controls are not implemented yet.
+The original **Marketplace header** stays visible above both lists. It remains mounted in its original location, preserving native controls, search text, selected sort and callbacks without recreating or cloning it. Update and settings retain their native actions. **Sort by** also orders saved cards within each type group using Stars, Newest, Oldest, Last updated, Most stale, A–Z and Z–A, following Marketplace's comparators. Search still applies only to the underlying catalogue.
+
+Sorting resolves the native dropdown's displayed selection through its own translated options, since its component value prop can retain the initial selection. Its callbacks remain intact. Stars and repository dates are captured from encountered native card component data and saved as optional metadata. Old entries and snippets without those fields compare equal for the corresponding mode; dates are never guessed from display text. Existing entries gain missing metadata when their native cards are encountered again. Opening saved lists does not fetch the catalogue. Private React data is read through a bounded adapter and may require adjustment after a Marketplace/Spotify update.
 
 Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
 
@@ -65,6 +67,7 @@ The two controls use native tab styling and are positioned immediately after the
 - `src/card-preview.ts`: scoped DOM adapter, classification controls, styles and lifecycle cleanup.
 - `src/saved-cards.ts`: saved-state interface, presentation snapshots and safe card rendering.
 - `src/persistence.ts`: account verification, versioned local storage and failure-safe list updates.
+- `src/sorting.ts`: native selection/metadata adapter and saved-card comparators.
 - `src/navigation.ts`: saved-list navigation, card grids and catalogue restoration.
 - `tests/`: bundle smoke test and DOM integration tests using Node's built-in runner.
 - `tsconfig.json`: strict browser-source type checking.
@@ -77,7 +80,7 @@ TypeScript, esbuild, Prettier and jsdom are development dependencies. There are 
 
 MarketFavs checks `UserAPI.getUser().username` against `LocalStorageAPI.namespace` before loading saved data and again before writes. Until they match, saved lists remain unavailable and classification controls are disabled. It rechecks on focus, visibility, relevant storage events and once per second. Namespace guards and account generations reject stale queued writes; account switching in live Spotify still needs runtime validation.
 
-Each account has one MarketFavs-owned `window.localStorage` value at `marketfavs:state:${encodeURIComponent(username)}`. Version 1 stores both lists and their presentation metadata in `entries`, plus empty reserved `matches.accepted` and `matches.rejected` arrays. Match decisions, import/export and recovery tools are not implemented. A missing key starts empty without writing a document until a change is made.
+Each account has one MarketFavs-owned `window.localStorage` value at `marketfavs:state:${encodeURIComponent(username)}`. Version 2 stores both lists and their presentation metadata in `entries`, plus empty reserved `matches.accepted` and `matches.rejected` arrays. Optional `card.sort` fields contain validated stars, creation date and last-update date. Version 1 documents remain readable without rewriting merely to sort; subsequent successful saves or metadata enrichment write version 2. Older extension versions cannot read version 2 and will block editing rather than discard it. Match decisions, import/export and recovery tools are not implemented. A missing key starts empty without writing a document until a change is made.
 
 Saving completes before memory and UI are updated. On a write failure, the previous classification stays visible and **Retry** repeats the intended change after account verification. A conflicting external edit is reloaded and requires reviewing/retrying the change. Invalid or unsupported stored documents remain untouched, with editing blocked; no automatic reset or migration occurs. Storage read errors are retryable. These guarantees apply to browser storage operations, not physical-disk durability or cross-process transactions.
 
@@ -85,7 +88,7 @@ Saved lists open directly from stored presentation data without loading the enti
 
 ## Scope and next work
 
-The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. Native actions within saved sections, Marketplace ordering, durable manifest identity, import/export and explicit recovery flows remain future work.
+The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. Native actions within saved sections, saved-list search, durable manifest identity, import/export and explicit recovery flows remain future work.
 
 The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. Item identity still combines card type, outbound link, title and subtitle; identical presentations share a classification, and metadata changes can prevent a match. This is not an authoritative manifest identifier and no uncertain match is transferred automatically. Account identity is used internally for storage isolation; no catalogue crawl or publication is performed.
 

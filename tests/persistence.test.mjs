@@ -48,7 +48,7 @@ test("persists classifications and metadata across reinjection and a fresh docum
   await settle(window);
   const raw = window.localStorage.getItem(key());
   assert.ok(raw);
-  assert.equal(JSON.parse(raw).version, 1);
+  assert.equal(JSON.parse(raw).version, 2);
   await boot(window, bundle);
   open(document);
   assert.equal(saved(document).length, 1);

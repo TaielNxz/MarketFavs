@@ -1,4 +1,5 @@
 import { renderSavedCard, type SavedCards } from "./saved-cards";
+import { readNativeSort, sortSavedCards, type SortMode } from "./sorting";
 
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
@@ -122,15 +123,20 @@ export function mountNavigation(
   const groups = document.createElement("div");
   groups.className = "marketfavs-saved-groups";
   let rendered: typeof selected;
+  let sortMode: SortMode = "stars";
   function renderCards() {
     rendered = selected;
+    sortMode = readNativeSort(document) ?? sortMode;
     const cards = selected ? savedCards.items(selected.list) : [];
     const status = savedCards.status();
     notice.textContent = status.message;
     retry.hidden = !status.retryable;
     empty.hidden = !status.ready || cards.length > 0;
     const sections = cardTypes.flatMap(({ type, label }) => {
-      const items = cards.filter((card) => card.type === type);
+      const items = sortSavedCards(
+        cards.filter((card) => card.type === type),
+        sortMode,
+      );
       if (items.length === 0) return [];
       const section = document.createElement("div");
       section.className = "marketplace-content marketfavs-saved-group";
@@ -299,7 +305,11 @@ export function mountNavigation(
       heading.textContent = selected?.label ?? "";
     if (empty.textContent !== (selected?.empty ?? ""))
       empty.textContent = selected?.empty ?? "";
-    if (rendered !== selected) renderCards();
+    if (
+      rendered !== selected ||
+      (readNativeSort(document) ?? sortMode) !== sortMode
+    )
+      renderCards();
     controls.forEach((button, index) => {
       button.setAttribute("aria-pressed", String(selected === entries[index]));
       setActive(button, selected === entries[index]);
@@ -336,8 +346,8 @@ export function mountNavigation(
         if (links.contains(record.target) || panel.contains(record.target))
           return false;
         if (
-          record.target instanceof view!.Element &&
-          (record.target.closest(NAV) || root?.contains(record.target))
+          root?.contains(record.target) ||
+          (record.target instanceof view!.Element && record.target.closest(NAV))
         )
           return true;
         return [...record.addedNodes, ...record.removedNodes].some(
@@ -351,6 +361,7 @@ export function mountNavigation(
     });
     observer.observe(document.documentElement, {
       childList: true,
+      characterData: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["class", "aria-current", "data-tab"],

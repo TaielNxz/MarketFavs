@@ -1,4 +1,5 @@
 import type { SavedCard, SavedList } from "./saved-cards";
+import { validSortMetadata } from "./sorting";
 
 type RecordEntry = { card: SavedCard; list: SavedList };
 type Platform = {
@@ -30,7 +31,7 @@ function decode(raw: string | null): Map<string, RecordEntry> {
   if (
     !object(value) ||
     !exact(value, ["version", "entries", "matches"]) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     !Array.isArray(value.entries) ||
     !object(value.matches) ||
     !exact(value.matches, ["accepted", "rejected"]) ||
@@ -48,10 +49,18 @@ function decode(raw: string | null): Map<string, RecordEntry> {
       typeof entry.list !== "string" ||
       !["favorites", "not-interested"].includes(entry.list) ||
       !object(entry.card) ||
-      !exact(entry.card, [...stringFields, "installed"])
+      !exact(entry.card, [
+        ...stringFields,
+        "installed",
+        ...(value.version === 2 && Object.hasOwn(entry.card, "sort")
+          ? ["sort"]
+          : []),
+      ])
     )
       throw new Error(damaged);
     const card = entry.card;
+    if (Object.hasOwn(card, "sort") && !validSortMetadata(card.sort))
+      throw new Error(damaged);
     if (
       !stringFields.every((key) => typeof card[key] === "string") ||
       typeof card.installed !== "boolean" ||
@@ -264,7 +273,7 @@ export function createPersistentLists(view: Window) {
         const next = mutate(records);
         if (!next) return;
         const raw = JSON.stringify({
-          version: 1,
+          version: 2,
           entries: [...next.values()],
           matches: { accepted: [], rejected: [] },
         });
@@ -354,10 +363,17 @@ export function createPersistentLists(view: Window) {
           let changed = false;
           for (const card of cards) {
             const record = next.get(card.key);
+            const sort = { ...record?.card.sort, ...card.sort };
+            const sameSort = ["stars", "created", "lastUpdated"].every(
+              (field) =>
+                record?.card.sort?.[field as keyof typeof sort] ===
+                sort[field as keyof typeof sort],
+            );
             if (
               !record ||
               (record.card.installed === card.installed &&
-                record.card.installedLabel === card.installedLabel)
+                record.card.installedLabel === card.installedLabel &&
+                sameSort)
             )
               continue;
             next.set(card.key, {
@@ -366,6 +382,7 @@ export function createPersistentLists(view: Window) {
                 ...record.card,
                 installed: card.installed,
                 installedLabel: card.installedLabel,
+                ...(Object.keys(sort).length > 0 ? { sort } : {}),
               },
             });
             changed = true;
