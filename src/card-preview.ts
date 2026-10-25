@@ -44,6 +44,13 @@ ${GRID} ${ROW} svg { width: 18px; height: 18px; flex-shrink: 0; }
 `;
 
 function isEligible(card: Element): boolean {
+  /* 
+  Determine if a card is eligible for the MarketFavs preview actions. 
+  A card is considered eligible if... 
+    - the card is within a Marketplace grid (GRID).
+    - the card has a class corresponding to one of the accepted types (TYPES).
+    - if the card is a snippet, its grid must have data-tab="Snippets".
+  */
   const grid = card.closest(GRID);
   return (
     grid !== null &&
@@ -76,22 +83,36 @@ function createButton(document: Document, label: string, path: string) {
 }
 
 export function mountCardPreview(document: Document): () => void {
+  // Obtains the window associated with the document. If it does not exist, returns an empty function
   const view = document.defaultView;
   if (!view) return () => {};
+
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = styles;
   let observer: MutationObserver | undefined;
 
   function scan() {
+    /* 
+      Scans the document for eligible cards and adds preview actions to them. 
+    */
+
+    // Remove any existing preview action rows that are no longer eligible 
+    // (e.g., if the card has been removed or is no longer eligible)
     for (const row of document.querySelectorAll(ROW)) {
       const card = row.closest(CARD);
       if (!card || !isEligible(card)) row.remove();
     }
+
+    // Add preview action rows to eligible cards that do not already have one
     for (const card of document.querySelectorAll(`${GRID} ${CARD}`)) {
+
+      // Ignore certaint cards: that are Not eligible. Already has 'Favorites' and 'Not Intered' buttons. Does not have a metadata section.
       if (!isEligible(card) || card.querySelector(ROW)) continue;
       const metadata = card.querySelector(".main-card-cardMetadata");
       if (!metadata) continue;
+
+      // Create a new row for the 'Favorites' and 'Not Intered' buttons and append it to the card's metadata section
       const row = document.createElement("div");
       row.className = "marketfavs-preview-actions";
       row.setAttribute("role", "group");
@@ -123,15 +144,26 @@ export function mountCardPreview(document: Document): () => void {
   }
 
   function start() {
+    /*
+      Starts the card preview functionality 
+      Observe the document for changes in the marketplace grid.
+      If any changes are detected, re-scan the document for eligible cards and update them accordingly.
+    */
+
+    // Insert the styles and scan for eligible cards
     (document.head ?? document.documentElement).append(style);
     scan();
+
+    // Define a MutationObserver to watch for changes in the document that may affect the marketplace grid. 
     observer = new view!.MutationObserver((records) => {
       const touchesMarketplace = records.some((record) => {
+        // Check if the target of the mutation is an element within a marketplace grid.
         if (
           record.target instanceof view!.Element &&
           record.target.closest(GRID)
         )
           return true;
+        // Check if any of the added or removed nodes are elements within a marketplace grid.
         return [...record.addedNodes, ...record.removedNodes].some(
           (node) =>
             node instanceof view!.Element &&
@@ -146,9 +178,13 @@ export function mountCardPreview(document: Document): () => void {
       attributes: true,
       attributeFilter: ["data-tab"],
     });
+
   }
 
   function dispose() {
+    /* 
+      Cleans up the card preview functionality 
+    */
     observer?.disconnect();
     document.removeEventListener("DOMContentLoaded", start);
     view?.removeEventListener("pagehide", dispose);
