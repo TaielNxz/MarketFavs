@@ -12,6 +12,12 @@ const entries = [
     empty: "No items marked as not interested yet.",
   },
 ] as const;
+const cardTypes = [
+  { type: "extension", label: "Extensions" },
+  { type: "theme", label: "Themes" },
+  { type: "snippet", label: "Snippets" },
+  { type: "app", label: "Apps" },
+] as const;
 
 const styles = `
 .marketfavs-navigation-host {
@@ -62,7 +68,6 @@ section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view
 .marketfavs-saved-view { padding-block: 24px; }
 .marketfavs-saved-view[hidden] { display: none; }
 .marketfavs-saved-view > p { margin-block: 16px; color: var(--spice-subtext, #b3b3b3); }
-.marketfavs-saved-grid { margin-block: 24px; }
 .marketfavs-saved-view > button {
   border: 1px solid var(--spice-button-disabled, #535353);
   border-radius: 20px;
@@ -106,17 +111,29 @@ export function mountNavigation(
   const notice = document.createElement("small");
   notice.textContent =
     "Session preview: lists reset when Spotify or the extension reloads.";
-  const grid = document.createElement("div");
-  grid.className =
-    "marketfavs-saved-grid marketplace-grid main-gridContainer-gridContainer main-gridContainer-fixedWidth";
+  const groups = document.createElement("div");
+  groups.className = "marketfavs-saved-groups";
   let rendered: typeof selected;
   function renderCards() {
     rendered = selected;
     const cards = selected ? savedCards.items(selected.list) : [];
     empty.hidden = cards.length > 0;
-    grid.replaceChildren(
-      ...cards.map((card) => renderSavedCard(document, card)),
-    );
+    const sections = cardTypes.flatMap(({ type, label }) => {
+      const items = cards.filter((card) => card.type === type);
+      if (items.length === 0) return [];
+      const section = document.createElement("div");
+      section.className = "marketplace-content marketfavs-saved-group";
+      const title = document.createElement("h2");
+      title.className = "marketplace-card-type-heading";
+      title.textContent = label;
+      const grid = document.createElement("div");
+      grid.className =
+        "marketfavs-saved-grid marketplace-grid main-gridContainer-gridContainer main-gridContainer-fixedWidth";
+      grid.append(...items.map((card) => renderSavedCard(document, card)));
+      section.append(title, grid);
+      return [section];
+    });
+    groups.replaceChildren(...sections);
   }
   const unsubscribe = savedCards.subscribe(renderCards);
   const back = document.createElement("button");
@@ -127,7 +144,7 @@ export function mountNavigation(
     sync(nativeTab);
     links.querySelector<HTMLButtonElement>("button")?.focus();
   });
-  panel.append(heading, notice, empty, grid, back);
+  panel.append(heading, notice, empty, groups, back);
   const controls = entries.map((entry) => {
     const item = document.createElement("li");
     item.className = "marketplace-tabBar-headerItem";

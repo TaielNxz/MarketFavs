@@ -49,6 +49,8 @@ This preview supports catalogue extensions, themes, snippets and apps. Installed
 
 Marketplace's navigation contains **Favorites** and **Not Interesed**, immediately following the native tabs after **Installed**. Each shows cards marked with its button, or an empty-state message. Cards retain their title, image, subtitle, description and safe outbound link even after the source DOM is replaced while browsing. The same classification controls work in the saved sections. This preview renders presentation snapshots without duplicating native install/remove controls; those actions remain available on the original Marketplace cards.
 
+Both lists group cards vertically in this order: **Extensions → Themes → Snippets → Apps**. Each nonempty group uses Marketplace's `h2.marketplace-card-type-heading` and a native card grid below it. Empty categories are omitted, matching Marketplace's grouped layout. Moving or removing a card updates its group immediately.
+
 Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
 
 The two controls use native tab styling and are positioned immediately after the last visible native tab. Their DOM list stays separate, preserving the width and item measurements used by Marketplace's More menu. Alignment updates when navigation or window size changes. The adapter coordinates active classes and accessibility state across both lists while preserving native callbacks, including More's mouse-down selection. No Marketplace configuration or saved preferences are written by the adapter.

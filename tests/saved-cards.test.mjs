@@ -262,3 +262,72 @@ test("saved snapshots render catalogue text safely and reject executable links",
     '<img src=x onerror="bad()">',
   );
 });
+
+test("both saved lists group cards by type in Marketplace order and update groups when reclassified", async (t) => {
+  const dom = new JSDOM(
+    `<nav class="marketplace-tabBar-nav"><ul class="marketplace-tabBar-header"></ul></nav>
+    <section class="contentSpacing"><header class="marketplace-header"></header>
+    ${["app", "snippet", "theme", "extension"]
+      .map(
+        (type) =>
+          `<div class="marketplace-grid" data-tab="${type === "snippet" ? "Snippets" : "Extensions"}">
+        ${card(type, `${type} favorite`)}${card(type, `${type} ignored`)}
+      </div>`,
+      )
+      .join("")}</section>`,
+    { url: "https://xpui.app.spotify.com", runScripts: "outside-only" },
+  );
+  const { window } = dom;
+  const { document } = window;
+  window.console.info = () => {};
+  t.after(() => {
+    window.dispatchEvent(new window.Event("pagehide"));
+    window.close();
+  });
+  const settle = () => new Promise((resolve) => window.setTimeout(resolve, 0));
+  const originals = [...document.querySelectorAll(".main-card-card")];
+  window.eval(bundle);
+  for (let index = 0; index < originals.length; index++)
+    originals[index]
+      .querySelector(
+        `button[aria-label="${index % 2 === 0 ? "Favoritos" : "No me interesa"}"]`,
+      )
+      .click();
+  const tabs = [...document.querySelectorAll(".marketfavs-navigation button")];
+  const panel = document.querySelector(".marketfavs-saved-view");
+  const labels = ["Extensions", "Themes", "Snippets", "Apps"];
+  const types = ["extension", "theme", "snippet", "app"];
+  const groups = () => [...panel.querySelectorAll(".marketfavs-saved-group")];
+  for (const [index, tab] of tabs.entries()) {
+    tab.click();
+    assert.deepEqual(
+      groups().map((group) => group.querySelector("h2").textContent),
+      labels,
+    );
+    groups().forEach((group, position) => {
+      const heading = group.firstElementChild;
+      assert.equal(heading.tagName, "H2");
+      assert.equal(heading.className, "marketplace-card-type-heading");
+      const grid = heading.nextElementSibling;
+      assert.ok(grid.classList.contains("marketplace-grid"));
+      assert.equal(grid.querySelectorAll(".main-card-card").length, 1);
+      assert.equal(
+        grid.querySelector(".main-cardHeader-text").textContent,
+        `${types[position]} ${index === 0 ? "favorite" : "ignored"}`,
+      );
+    });
+  }
+  await settle();
+  groups()[0].querySelector('button[aria-label="Favoritos"]').click();
+  assert.deepEqual(
+    groups().map((group) => group.querySelector("h2").textContent),
+    labels.slice(1),
+  );
+  tabs[0].click();
+  assert.equal(groups()[0].querySelectorAll(".main-card-card").length, 2);
+  assert.equal(groups()[0].querySelector("h2").textContent, "Extensions");
+  await settle();
+  groups()[0].querySelector('button[aria-label="Favoritos"]').click();
+  assert.equal(groups()[0].querySelectorAll(".main-card-card").length, 1);
+  for (const original of originals) assert.ok(original.isConnected);
+});
