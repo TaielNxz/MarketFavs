@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { JSDOM } from "jsdom";
+import { boot, settle as waitForChanges } from "./account-fixture.mjs";
 
 const bundle = await readFile(
   new URL("../dist/marketfavs.js", import.meta.url),
@@ -30,7 +31,7 @@ function fixture(t, html) {
   return dom.window;
 }
 
-test("adds two classification buttons to all four catalogue card types and preserves native actions", (t) => {
+test("adds two classification buttons to all four catalogue card types and preserves native actions", async (t) => {
   const window = fixture(
     t,
     [
@@ -47,7 +48,7 @@ test("adds two classification buttons to all four catalogue card types and prese
   const native = document.querySelector(".marketplace-installButton");
   native.addEventListener("click", () => nativeClicks++);
   document.addEventListener("click", () => cardClicks++);
-  window.eval(bundle);
+  await boot(window, bundle);
 
   const cards = document.querySelectorAll(".main-card-card");
   for (const element of cards) {
@@ -66,14 +67,16 @@ test("adds two classification buttons to all four catalogue card types and prese
       assert.ok(button.hasAttribute("aria-pressed"));
       assert.equal(button.tabIndex, 0);
       button.click();
+      await waitForChanges(window);
     }
   }
   assert.equal(nativeClicks, 0);
   assert.equal(cardClicks, 0);
-  assert.equal(window.localStorage.length, 1);
+  assert.equal(window.localStorage.length, 2);
   assert.equal(window.localStorage.getItem("unrelated"), "preserved");
   assert.equal(document.querySelector(".marketplace-installButton"), native);
   native.click();
+  await waitForChanges(window);
   assert.equal(nativeClicks, 1);
   assert.equal(cardClicks, 1);
 });
@@ -81,7 +84,7 @@ test("adds two classification buttons to all four catalogue card types and prese
 test("handles added cards, React replacement, reinjection and navigation without duplicate controls", async (t) => {
   const window = fixture(t, grid("extension", "Extensions"));
   const { document } = window;
-  window.eval(bundle);
+  await boot(window, bundle);
   const currentGrid = document.querySelector(".marketplace-grid");
   currentGrid.insertAdjacentHTML("beforeend", card("extension"));
   await settle(window);
@@ -95,7 +98,7 @@ test("handles added cards, React replacement, reinjection and navigation without
     document.querySelectorAll(".marketfavs-preview-actions").length,
     2,
   );
-  window.eval(bundle);
+  await boot(window, bundle);
   await settle(window);
   assert.equal(
     document.querySelectorAll(".marketfavs-preview-actions").length,
@@ -137,7 +140,7 @@ test("excludes Installed snippets whose catalogue provenance cannot be establish
     grid("snippet", "Installed") + grid("extension", "Installed"),
   );
   const { document } = window;
-  window.eval(bundle);
+  await boot(window, bundle);
   assert.equal(
     document.querySelector(
       ".marketplace-card--snippet .marketfavs-preview-actions",
@@ -172,13 +175,15 @@ test("filtering an entire loaded page preserves Load more and restores cards on 
       .querySelector(".marketplace-grid")
       .insertAdjacentHTML("beforeend", card("extension"));
   });
-  window.eval(bundle);
+  await boot(window, bundle);
   const original = document.querySelector(".main-card-card");
   original.querySelector('button[aria-label="No me interesa"]').click();
+  await waitForChanges(window);
   assert.equal(window.getComputedStyle(original).display, "none");
   assert.ok(original.isConnected);
   assert.notEqual(window.getComputedStyle(more).display, "none");
   more.click();
+  await waitForChanges(window);
   await settle(window);
   assert.equal(loads, 1);
   for (const element of document.querySelectorAll(".main-card-card"))

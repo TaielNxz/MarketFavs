@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { JSDOM } from "jsdom";
+import { boot, settle as waitForChanges } from "./account-fixture.mjs";
 
 const bundle = await readFile(
   new URL("../dist/marketfavs.js", import.meta.url),
@@ -50,15 +51,17 @@ test("classifies all four card types exclusively, toggles membership and preserv
   document.addEventListener("click", () => opened++);
   const nativeInstall = document.querySelector(".marketplace-installButton");
   nativeInstall.addEventListener("click", () => installs++);
-  window.eval(bundle);
+  await boot(window, bundle);
   const tabs = [...document.querySelectorAll(".marketfavs-navigation button")];
   const panel = document.querySelector(".marketfavs-saved-view");
   const saved = () => [...panel.querySelectorAll(".main-card-card")];
   for (const original of nativeCards)
     original.querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   for (const original of nativeCards)
     assert.equal(window.getComputedStyle(original).display, "none");
   tabs[0].click();
+  await waitForChanges(window);
   assert.equal(saved().length, 4);
   const savedGrid = panel.querySelector(".marketfavs-saved-grid");
   assert.ok(savedGrid.classList.contains("marketplace-grid"));
@@ -120,10 +123,13 @@ test("classifies all four card types exclusively, toggles membership and preserv
     assert.equal(window.getComputedStyle(original).display, "none");
   await settle();
   tabs[0].click();
+  await waitForChanges(window);
   await settle();
   saved()[0].querySelector('button[aria-label="No me interesa"]').click();
+  await waitForChanges(window);
   assert.equal(saved().length, 3);
   tabs[1].click();
+  await waitForChanges(window);
   assert.equal(saved().length, 1);
   assert.equal(
     saved()[0].querySelector(".main-cardHeader-text").textContent,
@@ -131,6 +137,7 @@ test("classifies all four card types exclusively, toggles membership and preserv
   );
   await settle();
   saved()[0].querySelector('button[aria-label="No me interesa"]').click();
+  await waitForChanges(window);
   assert.equal(saved().length, 0);
   assert.equal(panel.querySelector("p").hidden, false);
   assert.notEqual(window.getComputedStyle(nativeCards[0]).display, "none");
@@ -154,7 +161,9 @@ test("classifies all four card types exclusively, toggles membership and preserv
       cancelable: true,
     }),
   );
+  await waitForChanges(window);
   tabs[0].click();
+  await waitForChanges(window);
   assert.equal(saved().length, 4);
   // React can replace a card when changing catalogue categories.
   const originalGrid = nativeCards[0].closest(".marketplace-grid");
@@ -175,12 +184,14 @@ test("classifies all four card types exclusively, toggles membership and preserv
       cancelable: true,
     }),
   );
+  await waitForChanges(window);
   assert.equal(saved().length, 3);
   assert.notEqual(
     window.getComputedStyle(replacement.closest(".main-card-card")).display,
     "none",
   );
   replacement.click();
+  await waitForChanges(window);
   assert.equal(saved().length, 4);
   assert.equal(
     window.getComputedStyle(replacement.closest(".main-card-card")).display,
@@ -207,26 +218,28 @@ test("classifies all four card types exclusively, toggles membership and preserv
     3,
   );
   nativeInstall.click();
+  await waitForChanges(window);
   assert.equal(installs, 1);
-  assert.equal(window.localStorage.length, 1);
+  assert.equal(window.localStorage.length, 2);
   assert.equal(window.localStorage.getItem("unrelated"), "preserved");
-  window.eval(bundle);
+  await boot(window, bundle);
   await settle();
   for (const original of document.querySelectorAll(
     ".marketplace-grid:not(.marketfavs-saved-grid) .main-card-card",
   )) {
-    assert.notEqual(window.getComputedStyle(original).display, "none");
-    assert.equal(original.hasAttribute("data-marketfavs-filtered"), false);
+    assert.equal(window.getComputedStyle(original).display, "none");
+    assert.equal(original.hasAttribute("data-marketfavs-filtered"), true);
   }
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   assert.equal(
     document.querySelectorAll(".marketfavs-saved-grid .main-card-card").length,
-    0,
+    4,
   );
   assert.equal(document.querySelectorAll(".marketfavs-navigation").length, 1);
 });
 
-test("saved snapshots render catalogue text safely and reject executable links", (t) => {
+test("saved snapshots render catalogue text safely and reject executable links", async (t) => {
   const dom = new JSDOM(
     `<nav class="marketplace-tabBar-nav"><ul class="marketplace-tabBar-header"></ul></nav>
     <section class="contentSpacing"><header class="marketplace-header"></header>
@@ -246,9 +259,11 @@ test("saved snapshots render catalogue text safely and reject executable links",
   document.querySelector(".main-cardHeader-link").href = "javascript:bad()";
   document.querySelector(".marketplace-card-desc").textContent =
     '<img src=x onerror="bad()">';
-  window.eval(bundle);
+  await boot(window, bundle);
   document.querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   const snapshot = document.querySelector(
     ".marketfavs-saved-grid .main-card-card",
   );
@@ -286,13 +301,14 @@ test("both saved lists group cards by type in Marketplace order and update group
   });
   const settle = () => new Promise((resolve) => window.setTimeout(resolve, 0));
   const originals = [...document.querySelectorAll(".main-card-card")];
-  window.eval(bundle);
+  await boot(window, bundle);
   for (let index = 0; index < originals.length; index++)
     originals[index]
       .querySelector(
         `button[aria-label="${index % 2 === 0 ? "Favoritos" : "No me interesa"}"]`,
       )
       .click();
+  await waitForChanges(window);
   const tabs = [...document.querySelectorAll(".marketfavs-navigation button")];
   const panel = document.querySelector(".marketfavs-saved-view");
   const labels = ["Extensions", "Themes", "Snippets", "Apps"];
@@ -300,6 +316,7 @@ test("both saved lists group cards by type in Marketplace order and update group
   const groups = () => [...panel.querySelectorAll(".marketfavs-saved-group")];
   for (const [index, tab] of tabs.entries()) {
     tab.click();
+    await waitForChanges(window);
     assert.deepEqual(
       groups().map((group) => group.querySelector("h2").textContent),
       labels,
@@ -319,15 +336,18 @@ test("both saved lists group cards by type in Marketplace order and update group
   }
   await settle();
   groups()[0].querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   assert.deepEqual(
     groups().map((group) => group.querySelector("h2").textContent),
     labels.slice(1),
   );
   tabs[0].click();
+  await waitForChanges(window);
   assert.equal(groups()[0].querySelectorAll(".main-card-card").length, 2);
   assert.equal(groups()[0].querySelector("h2").textContent, "Extensions");
   await settle();
   groups()[0].querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   assert.equal(groups()[0].querySelectorAll(".main-card-card").length, 1);
   for (const original of originals) assert.ok(original.isConnected);
 });
@@ -355,11 +375,14 @@ test("favorites preserve and refresh native installed styling without changing c
       "beforeend",
       '<div class="marketplace-card__bottom-meta main-type-mestoBold">✓ Installed</div>',
     );
-  window.eval(bundle);
+  await boot(window, bundle);
   original.querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   other.querySelector('button[aria-label="Favoritos"]').click();
+  await waitForChanges(window);
   const favorites = document.querySelector(".marketfavs-navigation button");
   favorites.click();
+  await waitForChanges(window);
   const saved = () => [
     ...document.querySelectorAll(".marketfavs-saved-grid .main-card-card"),
   ];

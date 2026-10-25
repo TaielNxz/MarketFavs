@@ -10,10 +10,11 @@ if (typeof document !== "undefined") {
     [key: symbol]: (() => void) | undefined;
   };
   runtime[key]?.();
-  const savedCards = createSavedCards();
+  const savedCards = createSavedCards(window);
   const disposeCards = mountCardPreview(document, savedCards);
   const disposeNavigation = mountNavigation(document, savedCards);
   runtime[key] = () => {
+    savedCards.dispose();
     disposeCards();
     disposeNavigation();
   };

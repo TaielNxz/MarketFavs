@@ -109,15 +109,26 @@ export function mountNavigation(
   heading.id = "marketfavs-section-title";
   const empty = document.createElement("p");
   const notice = document.createElement("small");
-  notice.textContent =
-    "Session preview: lists reset when Spotify or the extension reloads.";
+  notice.className = "marketfavs-status";
+  notice.setAttribute("role", "status");
+  notice.setAttribute("aria-live", "polite");
+  notice.textContent = savedCards.status().message;
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "marketfavs-retry";
+  retry.textContent = "Retry";
+  retry.hidden = true;
+  retry.addEventListener("click", () => savedCards.retry());
   const groups = document.createElement("div");
   groups.className = "marketfavs-saved-groups";
   let rendered: typeof selected;
   function renderCards() {
     rendered = selected;
     const cards = selected ? savedCards.items(selected.list) : [];
-    empty.hidden = cards.length > 0;
+    const status = savedCards.status();
+    notice.textContent = status.message;
+    retry.hidden = !status.retryable;
+    empty.hidden = !status.ready || cards.length > 0;
     const sections = cardTypes.flatMap(({ type, label }) => {
       const items = cards.filter((card) => card.type === type);
       if (items.length === 0) return [];
@@ -144,7 +155,7 @@ export function mountNavigation(
     sync(nativeTab);
     links.querySelector<HTMLButtonElement>("button")?.focus();
   });
-  panel.append(heading, notice, empty, groups, back);
+  panel.append(heading, notice, empty, groups, back, retry);
   const controls = entries.map((entry) => {
     const item = document.createElement("li");
     item.className = "marketplace-tabBar-headerItem";

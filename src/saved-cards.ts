@@ -1,3 +1,5 @@
+import { createPersistentLists } from "./persistence";
+
 export type SavedList = "favorites" | "not-interested";
 export type SavedCard = {
   key: string;
@@ -11,7 +13,7 @@ export type SavedCard = {
   installedLabel: string;
 };
 
-// Session-only presentation identity. This is not a persistent catalogue identifier.
+// Presentation-based identity; this is not an authoritative catalogue identifier.
 export function readCard(card: Element): SavedCard | undefined {
   const type = ["extension", "theme", "snippet", "app"].find((value) =>
     card.classList.contains(`marketplace-card--${value}`),
@@ -59,53 +61,7 @@ function webUrl(value: string): string {
   }
 }
 
-export function createSavedCards() {
-  const records = new Map<string, { card: SavedCard; list: SavedList }>();
-  const listeners = new Set<() => void>();
-  function notify() {
-    for (const listener of listeners) listener();
-  }
-  return {
-    get(key: string) {
-      return records.get(key);
-    },
-    items(list: SavedList) {
-      return [...records.values()]
-        .filter((record) => record.list === list)
-        .map((record) => record.card);
-    },
-    toggle(card: SavedCard, list: SavedList) {
-      if (records.get(card.key)?.list === list) records.delete(card.key);
-      else records.set(card.key, { card, list });
-      notify();
-    },
-    updateInstallation(cards: SavedCard[]) {
-      let changed = false;
-      for (const card of cards) {
-        const record = records.get(card.key);
-        if (
-          !record ||
-          (record.card.installed === card.installed &&
-            record.card.installedLabel === card.installedLabel)
-        )
-          continue;
-        record.card = {
-          ...record.card,
-          installed: card.installed,
-          installedLabel: card.installedLabel,
-        };
-        changed = true;
-      }
-      if (changed) notify();
-    },
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-  };
-}
+export const createSavedCards = createPersistentLists;
 
 export type SavedCards = ReturnType<typeof createSavedCards>;
 

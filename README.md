@@ -1,6 +1,6 @@
 # MarketFavs
 
-An independent Spicetify extension that adds favorites and not-interested buttons to Marketplace cards. Classified items appear in their saved section and are hidden from catalogue categories. Installed keeps every item visible. Lists reset when Spotify or the extension reloads; persistent storage is not implemented yet.
+An independent Spicetify extension that adds favorites and not-interested buttons to Marketplace cards. Classified items appear in their saved section and are hidden from catalogue categories. Installed keeps every item visible. Both lists and their card metadata are saved locally for the verified Spotify account and restored after reload.
 
 ## Start developing
 
@@ -41,7 +41,7 @@ The CLI discovers the extension directory for this installation. Registration ad
 
 Open Marketplace and hover or keyboard-focus a card. Two outlined icon buttons, labeled “Favoritos” and “No me interesa”, appear at its foot. Click one to add the card to its section. Click the active button to clear the classification, or the other button to switch lists. Active buttons use an accent color and expose their pressed state to assistive technology. Enter and Space also activate the buttons without opening the card or triggering installation. Cards loaded later receive the same controls without duplicates.
 
-Marking a card hides it from the catalogue immediately. Clear its active button in the saved section to show it again. Switching lists keeps it hidden. **Installed** continues to show all installed items regardless of classification. Hidden cards remain in Marketplace's DOM, preserving native lifecycle and pagination; **Load more** remains available when all loaded cards are classified. Leaving or reloading the extension restores visibility.
+After a successful save, marking a card hides it from the catalogue. Clear its active button in the saved section to show it again. Switching lists keeps it hidden. **Installed** continues to show all installed items regardless of classification. Hidden cards remain in Marketplace's DOM, preserving native lifecycle and pagination; **Load more** remains available when all loaded cards are classified. Removing the extension restores native visibility; reloading it restores saved classifications and filtering.
 
 This preview supports catalogue extensions, themes, snippets and apps. Installed extensions and themes also receive controls. Snippets in the Installed tab are excluded because their DOM does not distinguish catalogue items from manually created snippets. No stored Marketplace data is read to infer that distinction.
 
@@ -63,7 +63,8 @@ The two controls use native tab styling and are positioned immediately after the
 
 - `src/main.ts`: browser entry point with cleanup when the preview is reloaded.
 - `src/card-preview.ts`: scoped DOM adapter, classification controls, styles and lifecycle cleanup.
-- `src/saved-cards.ts`: shared session state, presentation snapshots and safe card rendering.
+- `src/saved-cards.ts`: saved-state interface, presentation snapshots and safe card rendering.
+- `src/persistence.ts`: account verification, versioned local storage and failure-safe list updates.
 - `src/navigation.ts`: saved-list navigation, card grids and catalogue restoration.
 - `tests/`: bundle smoke test and DOM integration tests using Node's built-in runner.
 - `tsconfig.json`: strict browser-source type checking.
@@ -72,11 +73,21 @@ The two controls use native tab styling and are positioned immediately after the
 
 TypeScript, esbuild, Prettier and jsdom are development dependencies. There are no runtime dependencies. esbuild produces a single browser IIFE; TypeScript checks types separately. The project uses direct bundling because [Spicetify Creator is deprecated](https://github.com/spicetify/spicetify-creator#warning).
 
+## Local persistence
+
+MarketFavs checks `UserAPI.getUser().username` against `LocalStorageAPI.namespace` before loading saved data and again before writes. Until they match, saved lists remain unavailable and classification controls are disabled. It rechecks on focus, visibility, relevant storage events and once per second. Namespace guards and account generations reject stale queued writes; account switching in live Spotify still needs runtime validation.
+
+Each account has one MarketFavs-owned `window.localStorage` value at `marketfavs:state:${encodeURIComponent(username)}`. Version 1 stores both lists and their presentation metadata in `entries`, plus empty reserved `matches.accepted` and `matches.rejected` arrays. Match decisions, import/export and recovery tools are not implemented. A missing key starts empty without writing a document until a change is made.
+
+Saving completes before memory and UI are updated. On a write failure, the previous classification stays visible and **Retry** repeats the intended change after account verification. A conflicting external edit is reloaded and requires reviewing/retrying the change. Invalid or unsupported stored documents remain untouched, with editing blocked; no automatic reset or migration occurs. Storage read errors are retryable. These guarantees apply to browser storage operations, not physical-disk durability or cross-process transactions.
+
+Saved lists open directly from stored presentation data without loading the entire catalogue. Native Marketplace storage and installations are not modified. Local browser/Spotify storage removal can still remove MarketFavs data; this is local persistence, not cloud synchronization or a portable backup.
+
 ## Scope and next work
 
-The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. The current implementation adds session-only classification and saved-card previews. Persistent account storage, native actions within saved sections, Marketplace ordering and durable item identity remain future integration work.
+The planning context lives in [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md), outside this repository. Native actions within saved sections, Marketplace ordering, durable manifest identity, import/export and explicit recovery flows remain future work.
 
-The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. The session key combines card type, outbound link, title and subtitle; identical presentations share a classification, but this is not an authoritative manifest identifier. Storage schema and recovery details remain open in planning. The preview does not access account data, save preferences, fetch a catalogue or publish anything.
+The DOM adapter depends on Marketplace's current private class names and structure; it does not patch Marketplace or Spotify's React components. Item identity still combines card type, outbound link, title and subtitle; identical presentations share a classification, and metadata changes can prevent a match. This is not an authoritative manifest identifier and no uncertain match is transferred automatically. Account identity is used internally for storage isolation; no catalogue crawl or publication is performed.
 
 Review and commit changes manually. A publication manifest and license can be added when distribution is scoped.
 

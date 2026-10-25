@@ -130,6 +130,7 @@ export function mountCardPreview(
       Scans the document for eligible cards and adds preview actions to them. 
     */
 
+    const ready = savedCards.status().ready;
     // Remove any existing preview action rows that are no longer eligible
     // (e.g., if the card has been removed or is no longer eligible)
     for (const row of document.querySelectorAll(ROW)) {
@@ -159,7 +160,10 @@ export function mountCardPreview(
       if (existing) {
         for (const button of existing.querySelectorAll<HTMLButtonElement>(
           "button[data-list]",
-        ))
+        )) {
+          button.disabled = !ready;
+          if (ready) button.removeAttribute("aria-disabled");
+          else button.setAttribute("aria-disabled", "true");
           button.setAttribute(
             "aria-pressed",
             String(
@@ -167,6 +171,7 @@ export function mountCardPreview(
                 savedCards.get(item.key)?.list === button.dataset.list,
             ),
           );
+        }
         continue;
       }
       const metadata = card.querySelector(".main-card-cardMetadata");
@@ -193,6 +198,8 @@ export function mountCardPreview(
       row.querySelectorAll("button").forEach((button, index) => {
         const list = lists[index]!;
         button.dataset.list = list;
+        button.disabled = !ready;
+        if (!ready) button.setAttribute("aria-disabled", "true");
         const item = cardData(card);
         button.setAttribute(
           "aria-pressed",

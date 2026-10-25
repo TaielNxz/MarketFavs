@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { JSDOM } from "jsdom";
+import { boot, settle as waitForChanges } from "./account-fixture.mjs";
 
 const bundle = await readFile(
   new URL("../dist/marketfavs.js", import.meta.url),
@@ -35,7 +36,7 @@ function fixture(t, html = nativeNav + nativeSection) {
   return dom.window;
 }
 
-test("opens Favorites and Not Interesed empty sections and returns to the untouched catalogue", (t) => {
+test("opens Favorites and Not Interesed empty sections and returns to the untouched catalogue", async (t) => {
   const window = fixture(t);
   const { document } = window;
   const nativeList = document.querySelector(".marketplace-tabBar-header");
@@ -50,7 +51,7 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
   let settingsClicks = 0;
   settings.addEventListener("click", () => settingsClicks++);
   window.localStorage.setItem("unrelated", "preserved");
-  window.eval(bundle);
+  await boot(window, bundle);
 
   const controls = [
     ...document.querySelectorAll(".marketfavs-navigation button"),
@@ -74,6 +75,7 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
   for (const button of controls) {
     assert.equal(button.type, "button");
     button.click();
+    await waitForChanges(window);
     assert.equal(panel.hidden, false);
     assert.equal(panel.querySelector("h2").textContent, button.textContent);
     assert.equal(button.getAttribute("aria-pressed"), "true");
@@ -97,10 +99,12 @@ test("opens Favorites and Not Interesed empty sections and returns to the untouc
       settings,
     );
     settings.click();
+    await waitForChanges(window);
     assert.equal(window.getComputedStyle(footer).display, "none");
     assert.ok(panel.querySelector("p").textContent.length > 0);
   }
   panel.querySelector("button").click();
+  await waitForChanges(window);
   assert.equal(panel.hidden, true);
   assert.notEqual(window.getComputedStyle(header).display, "none");
   assert.notEqual(window.getComputedStyle(footer).display, "none");
@@ -135,7 +139,7 @@ test("native tabs leave either saved section with exactly one active tab and pre
         link.parentElement.dataset.tab;
     });
   }
-  window.eval(bundle);
+  await boot(window, bundle);
   const controls = [
     ...document.querySelectorAll(".marketfavs-navigation button"),
   ];
@@ -148,8 +152,10 @@ test("native tabs leave either saved section with exactly one active tab and pre
       "Installed",
     ]) {
       own.click();
+      await waitForChanges(window);
       const native = document.querySelector(`[data-tab="${category}"] a`);
       native.click();
+      await waitForChanges(window);
       await settle(window);
       assert.equal(
         document.querySelector(".marketfavs-saved-view").hidden,
@@ -197,11 +203,14 @@ test("native More selection leaves saved sections without intercepting its callb
       .forEach((link) => link.classList.remove("marketplace-tabBar-active"));
     document.querySelector(".marketplace-grid").dataset.tab = "Installed";
   });
-  window.eval(bundle);
+  await boot(window, bundle);
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   document.querySelector(".Dropdown-control").click();
+  await waitForChanges(window);
   assert.equal(document.querySelector(".marketfavs-saved-view").hidden, false);
   document.querySelector(".Dropdown-option").click();
+  await waitForChanges(window);
   await settle(window);
   assert.equal(changes, 1);
   assert.equal(document.querySelector(".marketfavs-saved-view").hidden, true);
@@ -216,14 +225,14 @@ test("native More selection leaves saved sections without intercepting its callb
   );
 });
 
-test("tabs preserve native measured width while aligning after Installed on resize", (t) => {
+test("tabs preserve native measured width while aligning after Installed on resize", async (t) => {
   const window = fixture(t);
   const { document } = window;
   const nativeList = document.querySelector(".marketplace-tabBar-header");
   let measuredRight = 900;
   nativeList.getBoundingClientRect = () => ({ right: measuredRight });
   nativeList.lastElementChild.getBoundingClientRect = () => ({ right: 450 });
-  window.eval(bundle);
+  await boot(window, bundle);
   const links = document.querySelector(".marketfavs-navigation");
   const positionedLeft = () =>
     measuredRight +
@@ -254,8 +263,9 @@ test("More mouse-down selection exits saved sections even before catalogue resul
     document.querySelector(".marketplace-grid").remove();
     document.querySelector(".Dropdown-menu").remove();
   });
-  window.eval(bundle);
+  await boot(window, bundle);
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   option.dispatchEvent(
     new window.MouseEvent("mousedown", { bubbles: true, button: 0 }),
   );
@@ -276,8 +286,9 @@ test("More mouse-down selection exits saved sections even before catalogue resul
 test("preserves saved selection through navigation replacement and disposes cleanly", async (t) => {
   const window = fixture(t);
   const { document } = window;
-  window.eval(bundle);
+  await boot(window, bundle);
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   await settle(window);
   assert.equal(
     document.querySelector(".marketfavs-saved-view h2").textContent,
@@ -309,7 +320,7 @@ test("preserves saved selection through navigation replacement and disposes clea
       .textContent,
     "Favorites",
   );
-  window.eval(bundle);
+  await boot(window, bundle);
   await settle(window);
   assert.equal(document.querySelectorAll(".marketfavs-navigation").length, 1);
   assert.equal(
@@ -334,7 +345,7 @@ test("mounts only with Marketplace navigation and content, then cleans up when l
   );
   const { document } = window;
   const otherPage = document.querySelector("section");
-  window.eval(bundle);
+  await boot(window, bundle);
   assert.equal(document.querySelector(".marketfavs-navigation"), null);
   document.body.insertAdjacentHTML("beforeend", nativeNav + nativeSection);
   await settle(window);
@@ -343,6 +354,7 @@ test("mounts only with Marketplace navigation and content, then cleans up when l
     2,
   );
   document.querySelector(".marketfavs-navigation button").click();
+  await waitForChanges(window);
   assert.notEqual(window.getComputedStyle(otherPage).display, "none");
   document.querySelector(".marketplace-header").closest("section").remove();
   document.querySelector(".marketplace-tabBar-nav").remove();
