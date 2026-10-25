@@ -1,5 +1,7 @@
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
+const NATIVE_LIST = ".marketplace-tabBar-header";
+const ACTIVE = "marketplace-tabBar-active";
 const entries = [
   { label: "Favorites", empty: "No favorites yet." },
   { label: "Not Interesed", empty: "No items marked as not interested yet." },
@@ -9,7 +11,8 @@ const styles = `
 .marketfavs-navigation-host {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 0;
   min-width: 0;
 }
 .marketfavs-navigation-host > .marketplace-tabBar-header {
@@ -19,26 +22,28 @@ const styles = `
 .marketfavs-navigation {
   display: flex;
   flex: 0 1 auto;
-  gap: 4px;
+  gap: 0;
   margin: 0;
   padding: 0;
   max-width: 100%;
   overflow-x: auto;
   list-style: none;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
 }
 .marketfavs-navigation button {
   border: 0;
   border-radius: 4px;
-  padding: 8px 12px;
+  padding: 8px 16px;
   font: inherit;
   white-space: nowrap;
-  color: var(--spice-subtext, #b3b3b3);
+  color: var(--spice-text, #fff);
   background: transparent;
   cursor: pointer;
 }
-.marketfavs-navigation button[aria-pressed="true"] {
+.marketfavs-navigation button.marketplace-tabBar-active {
   color: var(--spice-text, #fff);
-  background: var(--spice-highlight, #282828);
+  background: var(--spice-tab-active, var(--spice-highlight, #282828));
 }
 .marketfavs-navigation button:focus-visible,
 .marketfavs-saved-view button:focus-visible {
@@ -65,9 +70,15 @@ export function mountNavigation(document: Document): () => void {
   const view = document.defaultView;
   if (!view) return () => {};
   let selected: (typeof entries)[number] | undefined;
+  let nativeTab: string | undefined;
+  let pendingMore = false;
   let root: Element | null = null;
   let nav: Element | null = null;
   let observer: MutationObserver | undefined;
+  let resizeObserver: ResizeObserver | undefined;
+  let measuredList: Element | null = null;
+  let measuredLast: Element | null = null;
+  const originalCurrent = new WeakMap<Element, string | null>();
   const style = document.createElement("style");
   style.id = "marketfavs-navigation-style";
   style.textContent = styles;
@@ -87,7 +98,7 @@ export function mountNavigation(document: Document): () => void {
   back.textContent = "Back to Marketplace";
   back.addEventListener("click", () => {
     selected = undefined;
-    sync();
+    sync(nativeTab);
     links.querySelector<HTMLButtonElement>("button")?.focus();
   });
   panel.append(heading, empty, back);
@@ -97,7 +108,10 @@ export function mountNavigation(document: Document): () => void {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "marketplace-tabBar-headerItemLink";
-    button.textContent = entry.label;
+    const label = document.createElement("span");
+    label.className = "main-type-mestoBold";
+    label.textContent = entry.label;
+    button.append(label);
     button.setAttribute("aria-controls", panel.id);
     button.setAttribute("aria-pressed", "false");
     button.addEventListener("click", (event) => {
@@ -110,15 +124,86 @@ export function mountNavigation(document: Document): () => void {
     return button;
   });
 
+  function setActive(element: Element, active: boolean) {
+    if (element.classList.contains(ACTIVE) !== active)
+      element.classList.toggle(ACTIVE, active);
+    if (active) {
+      if (element.getAttribute("aria-current") !== "page")
+        element.setAttribute("aria-current", "page");
+    } else if (element.hasAttribute("aria-current")) {
+      element.removeAttribute("aria-current");
+    }
+  }
+
+  function updateNative(parent: Element, restore = false) {
+    const native = [
+      ...parent.querySelectorAll(
+        `${NATIVE_LIST} [data-tab] .marketplace-tabBar-headerItemLink`,
+      ),
+    ];
+    const visible = native.some(
+      (link) =>
+        link.closest("[data-tab]")?.getAttribute("data-tab") === nativeTab,
+    );
+    const more = parent.querySelector(`${NATIVE_LIST} .Dropdown-control`);
+    for (const link of [...native, ...(more ? [more] : [])]) {
+      if (!originalCurrent.has(link))
+        originalCurrent.set(link, link.getAttribute("aria-current"));
+      const matches =
+        link === more
+          ? !restore && (pendingMore || (!visible && nativeTab !== undefined))
+          : !pendingMore &&
+            link.closest("[data-tab]")?.getAttribute("data-tab") === nativeTab;
+      setActive(link, (restore || !selected) && matches);
+      if (restore) {
+        const previous = originalCurrent.get(link);
+        if (previous === null || previous === undefined)
+          link.removeAttribute("aria-current");
+        else link.setAttribute("aria-current", previous);
+      }
+    }
+  }
+
+  function alignTabs() {
+    const list = nav?.querySelector(NATIVE_LIST);
+    const last = list?.lastElementChild;
+    const gap =
+      list && last
+        ? Math.max(
+            0,
+            list.getBoundingClientRect().right -
+              last.getBoundingClientRect().right,
+          )
+        : 0;
+    const transform = `translateX(${-gap}px)`;
+    if (links.style.transform !== transform) links.style.transform = transform;
+  }
+
+  function observeLayout() {
+    const list = nav?.querySelector(NATIVE_LIST) ?? null;
+    const last = list?.lastElementChild ?? null;
+    if (resizeObserver && (list !== measuredList || last !== measuredLast)) {
+      resizeObserver.disconnect();
+      if (list) resizeObserver.observe(list);
+      if (last) resizeObserver.observe(last);
+      measuredList = list;
+      measuredLast = last;
+    }
+    alignTabs();
+  }
+
   function detach() {
+    resizeObserver?.disconnect();
+    measuredList = measuredLast = null;
     root?.removeAttribute("data-marketfavs-saved-view");
+    if (nav) updateNative(nav, true);
     nav?.classList.remove("marketfavs-navigation-host");
     links.remove();
     panel.remove();
     root = nav = null;
   }
 
-  function sync() {
+  function sync(preferredNativeTab?: string) {
     const nextNav = document.querySelector(NAV);
     const nextRoot = document
       .querySelector(HEADER)
@@ -126,6 +211,8 @@ export function mountNavigation(document: Document): () => void {
     if (!nextRoot) {
       detach();
       selected = undefined;
+      nativeTab = undefined;
+      pendingMore = false;
       return;
     }
     if (root !== nextRoot || nav !== nextNav) {
@@ -133,7 +220,23 @@ export function mountNavigation(document: Document): () => void {
       root = nextRoot;
       nav = nextNav;
     }
-    nav?.classList.add("marketfavs-navigation-host");
+    const activeTab = nextNav
+      ?.querySelector(`${NATIVE_LIST} [data-tab] .${ACTIVE}`)
+      ?.closest("[data-tab]")
+      ?.getAttribute("data-tab");
+    const category =
+      preferredNativeTab ??
+      activeTab ??
+      nextRoot
+        .querySelector(".marketplace-grid[data-tab]")
+        ?.getAttribute("data-tab");
+    if (category && category !== nativeTab) {
+      if (nativeTab !== undefined && !pendingMore) selected = undefined;
+      nativeTab = category;
+      pendingMore = false;
+    }
+    if (nav && !nav.classList.contains("marketfavs-navigation-host"))
+      nav.classList.add("marketfavs-navigation-host");
     if (nav && links.parentElement !== nav) nav.append(links);
     if (panel.parentElement !== root) root.append(panel);
     root.toggleAttribute("data-marketfavs-saved-view", selected !== undefined);
@@ -144,11 +247,35 @@ export function mountNavigation(document: Document): () => void {
       empty.textContent = selected?.empty ?? "";
     controls.forEach((button, index) => {
       button.setAttribute("aria-pressed", String(selected === entries[index]));
+      setActive(button, selected === entries[index]);
     });
+    if (nav) updateNative(nav);
+    observeLayout();
+  }
+
+  function onNativeClick(event: MouseEvent) {
+    if (!(event.target instanceof view!.Element)) return;
+    const list = event.target.closest(NATIVE_LIST);
+    if (!list || list.closest(NAV) !== nav) return;
+    const item = event.target.closest("[data-tab]");
+    if (event.target.closest('.Dropdown-option, [role="option"]')) {
+      selected = undefined;
+      pendingMore = true;
+      sync(nativeTab);
+    } else if (event.type === "click" && item) {
+      selected = undefined;
+      pendingMore = false;
+      sync(item.getAttribute("data-tab") ?? undefined);
+    }
   }
 
   function start() {
     (document.head ?? document.documentElement).append(style);
+    document.addEventListener("click", onNativeClick, true);
+    document.addEventListener("mousedown", onNativeClick, true);
+    view!.addEventListener("resize", alignTabs);
+    if (typeof view!.ResizeObserver === "function")
+      resizeObserver = new view!.ResizeObserver(alignTabs);
     observer = new view!.MutationObserver((records) => {
       const relevant = records.some((record) => {
         if (links.contains(record.target) || panel.contains(record.target))
@@ -170,12 +297,18 @@ export function mountNavigation(document: Document): () => void {
     observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "aria-current", "data-tab"],
     });
     sync();
   }
 
   function dispose() {
     observer?.disconnect();
+    resizeObserver?.disconnect();
+    document.removeEventListener("click", onNativeClick, true);
+    document.removeEventListener("mousedown", onNativeClick, true);
+    view?.removeEventListener("resize", alignTabs);
     document.removeEventListener("DOMContentLoaded", start);
     view?.removeEventListener("pagehide", dispose);
     detach();

@@ -1,5 +1,5 @@
-import { mountCardPreview } from "./card-preview";
-import { mountNavigation } from "./navigation";
+import { mountCardPreview } from "./card-preview"; // Component that adds buttons to each card in the marketplace grid
+import { mountNavigation } from "./navigation"; // Component that adds a navigation bar to the marketplace page
 
 console.info("[MarketFavs] Development scaffold loaded.");
 

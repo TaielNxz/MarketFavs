@@ -45,9 +45,9 @@ This preview supports catalogue extensions, themes, snippets and apps. Installed
 
 ## Saved-list navigation preview
 
-Marketplace's navigation also contains **Favorites** and **Not Interesed**. Both open empty sections; the card buttons remain inert and do not populate these views yet. **Back to Marketplace** returns to the native catalogue without resetting its category. Changing a native category preserves the selected saved-list view.
+Marketplace's navigation also contains **Favorites** and **Not Interesed**, immediately following the native tabs after **Installed**. Both open empty sections; the card buttons remain inert and do not populate these views yet. Choosing any native category leaves the saved section and shows that category's catalogue. Exactly one visible tab is active. **Back to Marketplace** remains available as an optional return action.
 
-The two controls use a separate list beside Marketplace's native category list, allowing its existing More menu to continue measuring only native items. Their selection exists only in memory; no Marketplace configuration or saved preferences are changed.
+The two controls use native tab styling and are positioned immediately after the last visible native tab. Their DOM list stays separate, preserving the width and item measurements used by Marketplace's More menu. Alignment updates when navigation or window size changes. The adapter coordinates active classes and accessibility state across both lists while preserving native callbacks, including More's mouse-down selection. Saved-section selection exists only in memory; no Marketplace configuration or saved preferences are written by the adapter.
 
 ## Project layout
 
