@@ -1,6 +1,7 @@
 import { renderSavedCard, type SavedCards } from "./saved-cards";
 import { readNativeSort, sortSavedCards, type SortMode } from "./sorting";
 import type { SavedActions } from "./saved-actions";
+import { downloadLists } from "./list-export";
 
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
@@ -79,6 +80,9 @@ section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view
   background: transparent;
   cursor: pointer;
 }
+.marketfavs-saved-view > button:disabled { opacity: .5; cursor: default; }
+.marketfavs-export { margin-inline-start: 8px; }
+.marketfavs-export-status { display: block; margin-block: 8px; }
 `;
 
 export function mountNavigation(
@@ -111,6 +115,26 @@ export function mountNavigation(
   panel.hidden = true;
   const heading = document.createElement("h2");
   heading.id = "marketfavs-section-title";
+  const exportButton = document.createElement("button");
+  exportButton.type = "button";
+  exportButton.className = "marketfavs-export";
+  exportButton.textContent = "Export lists";
+  exportButton.title = "Download all saved lists as JSON";
+  const exportStatus = document.createElement("small");
+  exportStatus.className = "marketfavs-export-status";
+  exportStatus.setAttribute("role", "status");
+  exportStatus.setAttribute("aria-live", "polite");
+  exportButton.addEventListener("click", () => {
+    if (!panel.isConnected || panel.hidden || !savedCards.status().ready)
+      return;
+    try {
+      downloadLists(document, savedCards);
+      exportStatus.textContent = "Download started.";
+    } catch {
+      exportStatus.textContent =
+        "Could not export the lists. Your data was preserved. Please try again.";
+    }
+  });
   const empty = document.createElement("p");
   const notice = document.createElement("small");
   notice.className = "marketfavs-status";
@@ -147,6 +171,7 @@ export function mountNavigation(
       ),
     );
     const status = savedCards.status();
+    exportButton.disabled = !status.ready;
     notice.textContent = status.message;
     retry.hidden = !status.retryable;
     empty.hidden = !status.ready || cards.length > 0;
@@ -185,7 +210,16 @@ export function mountNavigation(
     sync(nativeTab);
     links.querySelector<HTMLButtonElement>("button")?.focus();
   });
-  panel.append(heading, notice, empty, groups, back, retry);
+  panel.append(
+    heading,
+    notice,
+    empty,
+    groups,
+    back,
+    retry,
+    exportButton,
+    exportStatus,
+  );
   const controls = entries.map((entry) => {
     const item = document.createElement("li");
     item.className = "marketplace-tabBar-headerItem";
