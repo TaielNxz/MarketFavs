@@ -25,6 +25,8 @@ ${GRID} ${ROW} {
   flex-shrink: 0;
   opacity: 0;
   pointer-events: none;
+  -webkit-transition: none;
+  transition: none;
 }
 ${GRID} ${CARD}:has(.marketplace-installButton) ${ROW} {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -38,9 +40,13 @@ ${GRID} ${CARD}:has(${ROW}) .main-card-PlayButtonContainer {
   width: calc(100% / 3);
   height: 40px;
   margin: 0;
+  -webkit-box-shadow: none;
+  box-shadow: none;
   transform: none;
   opacity: 0;
   pointer-events: none;
+  -webkit-transition: none;
+  transition: none;
 }
 ${GRID} ${CARD}:hover ${ROW},
 ${GRID} ${CARD}:focus-within ${ROW},
@@ -65,10 +71,13 @@ ${GRID} ${CARD}:has(${ROW}) .marketplace-installButton {
   border-radius: 50%;
   color: var(--spice-subtext, #b3b3b3);
   background: transparent;
+  -webkit-box-shadow: none;
   box-shadow: none;
   transform: none;
   opacity: 1;
   cursor: pointer;
+  -webkit-transition: none;
+  transition: none;
 }
 ${GRID} ${ROW} button[aria-pressed="true"] {
   color: var(--spice-button, #1db954);
@@ -77,6 +86,16 @@ ${GRID} ${ROW} button[aria-pressed="true"] {
 ${GRID} ${ROW} button:hover,
 ${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:hover {
   color: var(--spice-text, #fff);
+}
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton,
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:hover {
+  color: var(--spice-card, #282828);
+  background: #fff;
+  border-color: #fff;
+}
+${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:hover:not(:disabled) {
+  background: #dedede;
+  border-color: #dedede;
 }
 ${GRID} ${ROW} button:focus-visible,
 ${GRID} ${CARD}:has(${ROW}) .marketplace-installButton:focus-visible {
@@ -93,6 +112,18 @@ ${GRID} ${CARD}:has(${ROW}) .marketplace-installButton svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  ${GRID} ${ROW},
+  ${GRID} ${CARD}:has(${ROW}) .main-card-PlayButtonContainer {
+    -webkit-transition: opacity .2s ease-out;
+    transition: opacity .2s ease-out;
+  }
+  ${GRID} ${ROW} button,
+  ${GRID} ${CARD}:has(${ROW}) .marketplace-installButton {
+    -webkit-transition: color .2s ease-out, border-color .2s ease-out, background-color .2s ease-out;
+    transition: color .2s ease-out, border-color .2s ease-out, background-color .2s ease-out;
+  }
 }
 `;
 
