@@ -1,5 +1,7 @@
 import { createPersistentLists } from "./persistence";
 import { readCardSort, type SortMetadata } from "./sorting";
+import { nativeInstallation } from "./native-marketplace";
+import type { SavedActions } from "./saved-actions";
 
 export type SavedList = "favorites" | "not-interested";
 export type SavedCard = {
@@ -33,7 +35,9 @@ export function readCard(card: Element): SavedCard | undefined {
   const description =
     card.querySelector(".marketplace-card-desc")?.textContent ?? "";
   const image = webUrl(card.querySelector<HTMLImageElement>("img")?.src ?? "");
-  const installed = card.classList.contains("marketplace-card--installed");
+  const installed =
+    nativeInstallation(card) ??
+    card.classList.contains("marketplace-card--installed");
   const sort = readCardSort(card, type, title);
   const installedLabel = installed
     ? ([...card.querySelectorAll(".marketplace-card__bottom-meta")]
@@ -69,11 +73,20 @@ export const createSavedCards = createPersistentLists;
 
 export type SavedCards = ReturnType<typeof createSavedCards>;
 
-// Render a presentation snapshot; never duplicate native install controls or handlers.
+// Render the saved presentation and delegate operations to the native adapter.
 export function renderSavedCard(
   document: Document,
   item: SavedCard,
+  actions?: SavedActions,
 ): HTMLElement {
+  if (actions) {
+    const installed = actions.installed(item);
+    item = {
+      ...item,
+      installed,
+      installedLabel: installed ? item.installedLabel || "✓ Installed" : "",
+    };
+  }
   const card = document.createElement("div");
   card.className = `main-card-card marketplace-card--${item.type}`;
   if (item.installed) card.classList.add("marketplace-card--installed");
@@ -127,6 +140,7 @@ export function renderSavedCard(
     installed.textContent = item.installedLabel;
     metadata.append(installed);
   }
+  if (actions) metadata.append(actions.render(item));
   content.append(imageContainer, metadata);
   card.append(content);
   return card;

@@ -99,7 +99,7 @@ test("classifies all four card types exclusively, toggles membership and preserv
     saved()[0].querySelector("a").href,
     "https://github.com/example/extension",
   );
-  assert.equal(saved()[0].querySelector(".marketplace-installButton"), null);
+  assert.ok(saved()[0].querySelector(".marketplace-installButton"));
   assert.equal(
     nativeCards[0]
       .querySelector('button[aria-label="Favoritos"]')

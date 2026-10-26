@@ -1,5 +1,6 @@
 import { renderSavedCard, type SavedCards } from "./saved-cards";
 import { readNativeSort, sortSavedCards, type SortMode } from "./sorting";
+import type { SavedActions } from "./saved-actions";
 
 const NAV = ".marketplace-tabBar-nav";
 const HEADER = ".marketplace-header";
@@ -83,6 +84,7 @@ section.contentSpacing[data-marketfavs-saved-view] > :not(.marketfavs-saved-view
 export function mountNavigation(
   document: Document,
   savedCards: SavedCards,
+  actions?: SavedActions,
 ): () => void {
   const view = document.defaultView;
   if (!view) return () => {};
@@ -166,7 +168,9 @@ export function mountNavigation(
       const grid = document.createElement("div");
       grid.className =
         "marketfavs-saved-grid marketplace-grid main-gridContainer-gridContainer main-gridContainer-fixedWidth";
-      grid.append(...items.map((card) => renderSavedCard(document, card)));
+      grid.append(
+        ...items.map((card) => renderSavedCard(document, card, actions)),
+      );
       section.append(title, grid);
       return [section];
     });
